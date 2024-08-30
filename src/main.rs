@@ -28,11 +28,11 @@ use getopts::Options;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::experiences::Experience;
+use crate::experiences::DbExperience;
 use crate::schemas::{BeaconPayload, RelayPayload};
 
 // Temporary fixture to avoid dealing with database adapaters
-static mut EXPERIENCE_LIST: Vec<Experience> = Vec::new();
+static mut EXPERIENCE_LIST: Vec<DbExperience> = Vec::new();
 static mut RELAYS: Vec<DbRelay> = Vec::new();
 static mut SYSTEM_USER: Option<DbRelay> = None;
 
@@ -58,7 +58,13 @@ async fn new_beacon(data: Data<()>, req_body: web::Json<BeaconPayload>) -> impl 
     let description = req_body.description.clone();
     let active = req_body.active;
     unsafe {
-        EXPERIENCE_LIST.push(Experience::new(url, name, description, active));
+        EXPERIENCE_LIST.push(DbExperience::new(
+            ObjectId::parse("http://localhost:8000/beacon/0").unwrap(),
+            url,
+            name,
+            description,
+            active,
+        ));
     }
     let activity = Create {
         actor: ObjectId::parse("http://localhost:8000/relay").unwrap(),

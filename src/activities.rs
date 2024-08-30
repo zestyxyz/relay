@@ -8,7 +8,7 @@ use serde::{self, Deserialize, Serialize};
 use url::Url;
 
 use crate::error::Error;
-use crate::{actors::DbRelay, experiences::Experience, EXPERIENCE_LIST};
+use crate::{actors::DbRelay, experiences::DbExperience, EXPERIENCE_LIST};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -49,7 +49,7 @@ impl ActivityHandler for Follow {
 #[serde(rename_all = "camelCase")]
 pub struct Create {
     pub actor: ObjectId<DbRelay>,
-    pub object: ObjectId<Experience>,
+    pub object: ObjectId<DbExperience>,
     #[serde(rename = "type")]
     pub kind: CreateType,
     pub id: Url,

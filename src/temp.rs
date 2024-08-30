@@ -1,3 +1,5 @@
+// Test keys generated just for this prototype
+
 pub const PUBLIC_KEY: &'static str = "-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAruMKUMFH2Y1EnqtJ2jVY
 j+r44dMZVlqaXtcm+FjCbICp1I7PxsS4F6lLilfm1CIwX9Cr7KlFNbE37kcol3dB
