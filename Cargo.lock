@@ -1777,6 +1777,7 @@ dependencies = [
  "enum_delegate",
  "getopts",
  "serde",
+ "serde_json",
  "tokio",
  "url",
 ]

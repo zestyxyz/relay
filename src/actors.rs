@@ -1,12 +1,20 @@
+use std::fmt::Debug;
+
+use activitypub_federation::activity_queue::queue_activity;
+use activitypub_federation::activity_sending::SendActivityTask;
 use activitypub_federation::config::Data;
-use activitypub_federation::traits::Actor;
+use activitypub_federation::protocol::context::WithContext;
+use activitypub_federation::traits::{ActivityHandler, Actor};
 use activitypub_federation::{
-    error::Error, fetch::object_id::ObjectId, kinds::actor::ServiceType,
-    protocol::public_key::PublicKey, traits::Object,
+    fetch::object_id::ObjectId, kinds::actor::ServiceType, protocol::public_key::PublicKey,
+    traits::Object,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use url::Url;
+
+use crate::error::Error;
+use crate::RELAYS;
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -21,7 +29,7 @@ pub struct Relay {
     pub public_key: PublicKey,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DbRelay {
     pub name: String,
     pub ap_id: ObjectId<DbRelay>,
@@ -33,6 +41,56 @@ pub struct DbRelay {
     last_refreshed_at: DateTime<Utc>,
     pub followers: Vec<Url>,
     pub local: bool,
+}
+
+impl DbRelay {
+    pub fn new(
+        name: String,
+        ap_id: ObjectId<DbRelay>,
+        inbox: Url,
+        public_key: String,
+        private_key: Option<String>,
+        local: bool,
+    ) -> Self {
+        Self {
+            name,
+            ap_id,
+            inbox,
+            public_key,
+            private_key,
+            last_refreshed_at: Utc::now(),
+            followers: Vec::new(),
+            local,
+        }
+    }
+
+    pub(crate) async fn send<Activity>(
+        &self,
+        activity: Activity,
+        recipients: Vec<Url>,
+        use_queue: bool,
+        data: &Data<()>,
+    ) -> Result<(), Error>
+    where
+        Activity: ActivityHandler + Serialize + Debug + Send + Sync,
+        <Activity as ActivityHandler>::Error: From<Error> + From<serde_json::Error>,
+    {
+        let activity = WithContext::new_default(activity);
+        println!("In send()");
+        // Send through queue in some cases and bypass it in others to test both code paths
+        if use_queue {
+            queue_activity(&activity, self, recipients, data).await?;
+        } else {
+            println!("About to call SendActivityTask::prepare()");
+            let sends = SendActivityTask::prepare(&activity, self, recipients, data).await?;
+            for send in sends {
+                println!("About to send activity");
+                send.sign_and_send(data).await?;
+                println!("Should've sent it now");
+            }
+        }
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -47,13 +105,12 @@ impl Object for DbRelay {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        // let users = data.users.lock().unwrap();
-        // let res = users
-        //     .clone()
-        //     .into_iter()
-        //     .find(|u| u.ap_id.inner() == &object_id);
-        // Ok(res)
-        Ok(None)
+        println!("In read_from_id()");
+        unsafe {
+            let relay = RELAYS.iter().find(|r| *r.ap_id.inner() == object_id);
+            let relay = relay.unwrap().clone();
+            Ok(Some(relay))
+        }
     }
 
     async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {

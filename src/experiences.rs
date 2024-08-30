@@ -42,55 +42,32 @@ pub struct Page {
     content: String,                  // experiencec URL
 }
 
+#[async_trait::async_trait]
 impl Object for Experience {
     type DataType = ();
     type Kind = Page;
     type Error = Error;
 
-    fn read_from_id<'life0, 'async_trait>(
+    async fn read_from_id(
         object_id: Url,
-        data: &'life0 Data<Self::DataType>,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Self>, Self::Error>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
+        data: &Data<Self::DataType>,
+    ) -> Result<Option<Self>, Self::Error> {
         todo!()
     }
 
-    fn into_json<'life0, 'async_trait>(
-        self,
-        data: &'life0 Data<Self::DataType>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self::Kind, Self::Error>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
+    async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
         todo!()
     }
 
-    fn verify<'life0, 'life1, 'life2, 'async_trait>(
-        json: &'life0 Self::Kind,
-        expected_domain: &'life1 Url,
-        data: &'life2 Data<Self::DataType>,
-    ) -> ::core::pin::Pin<Box<dyn Future<Output = Result<(), Self::Error>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        'life1: 'async_trait,
-        'life2: 'async_trait,
-        Self: 'async_trait,
-    {
-        todo!()
+    async fn verify(
+        json: &Self::Kind,
+        expected_domain: &Url,
+        data: &Data<Self::DataType>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
     }
 
-    fn from_json<'life0, 'async_trait>(
-        json: Self::Kind,
-        data: &'life0 Data<Self::DataType>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::Error>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
+    async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
         todo!()
     }
 }

@@ -1,10 +1,13 @@
 use activitypub_federation::{
-    config::Data, error::Error, fetch::object_id::ObjectId, kinds::activity::FollowType,
+    config::Data,
+    fetch::object_id::ObjectId,
+    kinds::activity::{CreateType, FollowType},
     traits::ActivityHandler,
 };
 use serde::{self, Deserialize, Serialize};
 use url::Url;
 
+use crate::error::Error;
 use crate::{actors::DbRelay, experiences::Experience, EXPERIENCE_LIST};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -48,7 +51,7 @@ pub struct Create {
     pub actor: ObjectId<DbRelay>,
     pub object: ObjectId<Experience>,
     #[serde(rename = "type")]
-    pub kind: FollowType,
+    pub kind: CreateType,
     pub id: Url,
 }
 
