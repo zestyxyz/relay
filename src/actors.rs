@@ -4,6 +4,7 @@ use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::activity_sending::SendActivityTask;
 use activitypub_federation::config::Data;
 use activitypub_federation::protocol::context::WithContext;
+use activitypub_federation::protocol::verification::verify_domains_match;
 use activitypub_federation::traits::{ActivityHandler, Actor};
 use activitypub_federation::{
     fetch::object_id::ObjectId, kinds::actor::ServiceType, protocol::public_key::PublicKey,
@@ -34,11 +35,12 @@ pub struct DbRelay {
     pub name: String,
     pub ap_id: ObjectId<DbRelay>,
     pub inbox: Url,
+    pub outbox: Url,
     // exists for all users (necessary to verify http signatures)
     public_key: String,
     // exists only for local users
     private_key: Option<String>,
-    last_refreshed_at: DateTime<Utc>,
+    pub last_refreshed_at: DateTime<Utc>,
     pub followers: Vec<Url>,
     pub local: bool,
 }
@@ -48,6 +50,7 @@ impl DbRelay {
         name: String,
         ap_id: ObjectId<DbRelay>,
         inbox: Url,
+        outbox: Url,
         public_key: String,
         private_key: Option<String>,
         local: bool,
@@ -56,6 +59,7 @@ impl DbRelay {
             name,
             ap_id,
             inbox,
+            outbox,
             public_key,
             private_key,
             last_refreshed_at: Utc::now(),
@@ -103,7 +107,7 @@ impl Object for DbRelay {
 
     async fn read_from_id(
         object_id: Url,
-        data: &Data<Self::DataType>,
+        _data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
         println!("In read_from_id()");
         unsafe {
@@ -114,14 +118,17 @@ impl Object for DbRelay {
     }
 
     async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
+        let name = self.name.clone();
+        let owner = self.ap_id.inner().clone();
+        let public_key_pem = self.public_key.clone();
         Ok(Relay {
-            id: todo!(),
+            id: self.ap_id,
             kind: ServiceType::Service,
-            preferred_username: todo!(),
-            name: todo!(),
-            inbox: todo!(),
-            outbox: todo!(),
-            public_key: todo!(),
+            preferred_username: "".to_string(),
+            name: name.clone(),
+            inbox: self.inbox,
+            outbox: self.outbox,
+            public_key: PublicKey { id: name, owner, public_key_pem },
         })
     }
 
@@ -130,15 +137,16 @@ impl Object for DbRelay {
         expected_domain: &Url,
         _data: &Data<Self::DataType>,
     ) -> Result<(), Self::Error> {
-        // verify_domains_match(json.id.inner(), expected_domain)?;
+        verify_domains_match(json.id.inner(), expected_domain)?;
         Ok(())
     }
 
-    async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
+    async fn from_json(json: Self::Kind, _data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
         let user = DbRelay {
             name: json.preferred_username,
             ap_id: json.id,
             inbox: json.inbox,
+            outbox: json.outbox,
             public_key: json.public_key.public_key_pem,
             private_key: None,
             last_refreshed_at: Utc::now(),

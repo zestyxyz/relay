@@ -13,12 +13,11 @@ use activities::{Create, Follow};
 use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::{Data, FederationConfig, FederationMiddleware};
 use activitypub_federation::fetch::object_id::ObjectId;
-use activitypub_federation::http_signatures::generate_actor_keypair;
 use activitypub_federation::kinds::activity::CreateType;
 use activitypub_federation::kinds::actor::ServiceType;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::protocol::public_key::PublicKey;
-use activitypub_federation::traits::ActivityHandler;
+use activitypub_federation::traits::{ActivityHandler, Object};
 use activitypub_federation::FEDERATION_CONTENT_TYPE;
 use actix_cors::Cors;
 use actix_web::web::Bytes;
@@ -29,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::experiences::DbExperience;
-use crate::schemas::{BeaconPayload, RelayPayload};
+use crate::schemas::BeaconPayload;
 
 // Temporary fixture to avoid dealing with database adapaters
 static mut EXPERIENCE_LIST: Vec<DbExperience> = Vec::new();
@@ -42,13 +41,19 @@ async fn hello() -> impl Responder {
 }
 
 #[get("/beacon/{id}")]
-async fn get_beacon() -> impl Responder {
+async fn get_beacon(data: Data<()>) -> impl Responder {
     let experience = unsafe {
         EXPERIENCE_LIST
-            .get(0)
+            .first()
             .unwrap_or_else(|| panic!("No beacon found"))
+            .clone()
+            .into_json(&data)
+            .await
+            .unwrap()
     };
-    HttpResponse::Ok().json(experience)
+    HttpResponse::Ok()
+        .content_type(FEDERATION_CONTENT_TYPE)
+        .json(experience)
 }
 
 #[put("/beacon")]
@@ -147,11 +152,11 @@ async fn main() -> Result<(), anyhow::Error> {
     let other_port = if port == 8000 { 8001 } else { 8000 };
 
     unsafe {
-        let keypair = generate_actor_keypair().unwrap();
         let relay = DbRelay::new(
             "Test Relay 1".to_string(),
             ObjectId::parse(&format!("http://localhost:{}/relay", port)).unwrap(),
             Url::from_str(&format!("http://localhost:{}/relay/inbox", port)).unwrap(),
+            Url::from_str(&format!("http://localhost:{}/relay/outbox", port)).unwrap(),
             PUBLIC_KEY.to_string(),
             Some(PRIVATE_KEY.to_string()),
             true,
@@ -161,6 +166,7 @@ async fn main() -> Result<(), anyhow::Error> {
             "Test Relay 2".to_string(),
             ObjectId::parse(&format!("http://localhost:{}/relay", other_port)).unwrap(),
             Url::from_str(&format!("http://localhost:{}/relay/inbox", other_port)).unwrap(),
+            Url::from_str(&format!("http://localhost:{}/relay/outbox", port)).unwrap(),
             PUBLIC_KEY.to_string(),
             None,
             false,

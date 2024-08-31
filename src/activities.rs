@@ -37,10 +37,10 @@ impl ActivityHandler for Follow {
         Ok(())
     }
 
-    async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        let actor = self.actor.dereference(data).await?;
-        let followed = self.object.dereference(data).await?;
-        //data.add_follower(followed, actor).await?;
+    async fn receive(self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        // let actor = self.actor.dereference(data).await?;
+        // let followed = self.object.dereference(data).await?;
+        // //data.add_follower(followed, actor).await?;
         Ok(())
     }
 }

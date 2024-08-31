@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct BeaconPayload {
@@ -6,9 +6,4 @@ pub struct BeaconPayload {
     pub name: String,
     pub description: String,
     pub active: bool,
-}
-
-#[derive(Deserialize)]
-pub struct RelayPayload {
-    pub url: String,
 }

@@ -1,6 +1,6 @@
 // Test keys generated just for this prototype
 
-pub const PUBLIC_KEY: &'static str = "-----BEGIN PUBLIC KEY-----
+pub const PUBLIC_KEY: &str = "-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAruMKUMFH2Y1EnqtJ2jVY
 j+r44dMZVlqaXtcm+FjCbICp1I7PxsS4F6lLilfm1CIwX9Cr7KlFNbE37kcol3dB
 uNeBOXwhC5xleHsInZe437pua7myAy+90QP7vj2M2r89PuRUDJB3dC0Y1dMofOdz
@@ -10,7 +10,7 @@ VNM+hlFpxE/KG8A9U8BZMcdEEm5rjmMXjB845G84mVntKlpMKRkDWucYEMwzCXIv
 0wIDAQAB
 -----END PUBLIC KEY-----";
 
-pub const PRIVATE_KEY: &'static str = "-----BEGIN PRIVATE KEY-----
+pub const PRIVATE_KEY: &str = "-----BEGIN PRIVATE KEY-----
 MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCu4wpQwUfZjUSe
 q0naNViP6vjh0xlWWppe1yb4WMJsgKnUjs/GxLgXqUuKV+bUIjBf0KvsqUU1sTfu
 RyiXd0G414E5fCELnGV4ewidl7jfum5rubIDL73RA/u+PYzavz0+5FQMkHd0LRjV
