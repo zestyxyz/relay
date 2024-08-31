@@ -7,21 +7,21 @@ use activitypub_federation::{kinds::object::PageType, traits::Object};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::EXPERIENCE_LIST;
+use crate::APPS_LIST;
 
-/// The internal representation of experience data
+/// The internal representation of App data
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct DbExperience {
-    pub ap_id: ObjectId<DbExperience>,
+pub struct DbApp {
+    pub ap_id: ObjectId<DbApp>,
     pub url: String,
     pub name: String,
     pub description: String,
     pub active: bool,
 }
 
-impl DbExperience {
+impl DbApp {
     pub fn new(
-        ap_id: ObjectId<DbExperience>,
+        ap_id: ObjectId<DbApp>,
         url: String,
         name: String,
         description: String,
@@ -40,10 +40,10 @@ impl DbExperience {
 /// How the experiencce is serialized and represented as Activitypub JSON
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Experience {
+pub struct App {
     #[serde(rename = "type")]
     kind: PageType,
-    id: ObjectId<DbExperience>,
+    id: ObjectId<DbApp>,
     pub(crate) attributed_to: String,
     #[serde(deserialize_with = "deserialize_one_or_many")]
     pub(crate) to: Vec<String>,
@@ -53,23 +53,23 @@ pub struct Experience {
 }
 
 #[async_trait::async_trait]
-impl Object for DbExperience {
+impl Object for DbApp {
     type DataType = ();
-    type Kind = Experience;
+    type Kind = App;
     type Error = Error;
 
     async fn read_from_id(
         object_id: Url,
         _data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        let experience = unsafe {
-            EXPERIENCE_LIST.iter().find(|e| *e.ap_id.inner() == object_id).cloned()
+        let app = unsafe {
+            APPS_LIST.iter().find(|e| *e.ap_id.inner() == object_id).cloned()
         };
-        Ok(experience)
+        Ok(app)
     }
 
     async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Error> {
-        Ok(Experience {
+        Ok(App {
             id: self.ap_id,
             kind: PageType::Page,
             attributed_to: "".to_string(),
@@ -91,13 +91,13 @@ impl Object for DbExperience {
     }
 
     async fn from_json(json: Self::Kind, _data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
-        let experience = DbExperience {
+        let app = DbApp {
             ap_id: json.id,
             url: json.content,
             name: json.name,
             description: json.summary,
             active: false,
         };
-        Ok(experience)
+        Ok(app)
     }
 }

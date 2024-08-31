@@ -1,10 +1,9 @@
 mod activities;
 mod actors;
 mod error;
-mod experiences;
+mod apps;
 mod schemas;
 mod temp;
-use temp::{PRIVATE_KEY, PUBLIC_KEY};
 
 use std::env;
 use std::str::FromStr;
@@ -27,11 +26,12 @@ use getopts::Options;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::experiences::DbExperience;
+use crate::apps::DbApp;
 use crate::schemas::BeaconPayload;
+use crate::temp::{PRIVATE_KEY, PUBLIC_KEY};
 
 // Temporary fixture to avoid dealing with database adapaters
-static mut EXPERIENCE_LIST: Vec<DbExperience> = Vec::new();
+static mut APPS_LIST: Vec<DbApp> = Vec::new();
 static mut RELAYS: Vec<DbRelay> = Vec::new();
 static mut SYSTEM_USER: Option<DbRelay> = None;
 
@@ -43,7 +43,7 @@ async fn hello() -> impl Responder {
 #[get("/beacon/{id}")]
 async fn get_beacon(data: Data<()>) -> impl Responder {
     let experience = unsafe {
-        EXPERIENCE_LIST
+        APPS_LIST
             .first()
             .unwrap_or_else(|| panic!("No beacon found"))
             .clone()
@@ -63,7 +63,7 @@ async fn new_beacon(data: Data<()>, req_body: web::Json<BeaconPayload>) -> impl 
     let description = req_body.description.clone();
     let active = req_body.active;
     unsafe {
-        EXPERIENCE_LIST.push(DbExperience::new(
+        APPS_LIST.push(DbApp::new(
             ObjectId::parse("http://localhost:8000/beacon/0").unwrap(),
             url,
             name,
@@ -91,7 +91,7 @@ async fn new_beacon(data: Data<()>, req_body: web::Json<BeaconPayload>) -> impl 
 
 #[get("/experiences")]
 async fn get_experiences() -> impl Responder {
-    HttpResponse::Ok().json(unsafe { EXPERIENCE_LIST.clone() })
+    HttpResponse::Ok().json(unsafe { APPS_LIST.clone() })
 }
 
 /// Handles requests to fetch system user json over HTTP
