@@ -96,7 +96,7 @@ impl Object for DbApp {
             url: json.content,
             name: json.name,
             description: json.summary,
-            active: false,
+            active: true,
         };
         Ok(app)
     }

@@ -44,11 +44,11 @@ async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
-#[get("/beacon/{id}")]
-async fn get_beacon(data: Data<()>) -> impl Responder {
+#[get("/relay/beacon/{id}")]
+async fn get_beacon(info: web::Path<usize>, data: Data<()>) -> impl Responder {
     let experience = unsafe {
         APPS_LIST
-            .first()
+            .get(info.into_inner())
             .unwrap_or_else(|| panic!("No beacon found"))
             .clone()
             .into_json(&data)
@@ -66,9 +66,10 @@ async fn new_beacon(data: Data<()>, req_body: web::Json<BeaconPayload>) -> impl 
     let name = req_body.name.clone();
     let description = req_body.description.clone();
     let active = req_body.active;
-    let apps_count = unsafe { APPS_LIST.len() + 1 };
-    let activities_count = unsafe { ACTIVITIES.len() + 1 };
-    let domain = unsafe { SYSTEM_USER.clone().unwrap().ap_id.inner().to_string() };
+    let apps_count = unsafe { APPS_LIST.len() };
+    let activities_count = unsafe { ACTIVITIES.len() };
+    let system_user = unsafe { SYSTEM_USER.clone().unwrap() };
+    let domain = system_user.ap_id.inner().as_str();
     unsafe {
         APPS_LIST.push(DbApp::new(
             ObjectId::parse(&format!("{}/beacon/{}", domain, apps_count)).unwrap(),
@@ -79,10 +80,10 @@ async fn new_beacon(data: Data<()>, req_body: web::Json<BeaconPayload>) -> impl 
         ));
     }
     let activity = Create {
-        actor: ObjectId::parse(&format!("{}/relay", domain)).unwrap(),
+        actor: ObjectId::parse(domain).unwrap(),
         object: ObjectId::parse(&format!("{}/beacon/{}", domain, apps_count)).unwrap(),
         kind: CreateType::Create,
-        id: Url::from_str(&format!("{}/activity/{}", domain, activities_count)).unwrap(),
+        id: Url::from_str(&format!("{}/activities/{}", domain, activities_count)).unwrap(),
     };
     unsafe {
         let recipients: Vec<Url> = RELAYS.iter().map(|relay| relay.inbox.clone()).collect();
@@ -126,10 +127,10 @@ async fn http_get_system_user(_data: Data<()>) -> impl Responder {
 }
 
 #[get("relay/activities/{id}")]
-async fn get_activity(data: Data<()>) -> impl Responder {
+async fn get_activity(info: web::Path<usize>, data: Data<()>) -> impl Responder {
     let activity = unsafe {
         ACTIVITIES
-            .first()
+            .get(info.into_inner())
             .unwrap_or_else(|| panic!("No activity found"))
     };
     HttpResponse::Ok()
@@ -147,7 +148,6 @@ pub enum RelayAcceptedActivities {
 
 #[post("/relay/inbox")]
 async fn http_post_relay_inbox(request: HttpRequest, body: Bytes, data: Data<()>) -> HttpResponse {
-    println!("Got a request to the relay inbox");
     match receive_activity::<WithContext<RelayAcceptedActivities>, DbRelay, ()>(
         request, body, &data,
     )
