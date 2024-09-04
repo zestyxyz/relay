@@ -9,7 +9,7 @@ actix-cors = "0.7.0"
 actix-web = "4.9.0"
 anyhow = "1.0.86"
 async-trait = "0.1.81"
-chrono = "0.4.38"
+chrono = { version = "0.4.38", features = ["serde"] }
 enum_delegate = "0.2.0"
 getopts = "0.2.21"
 serde = "1.0.209"

@@ -2,13 +2,14 @@ use activitypub_federation::{
     config::Data,
     fetch::object_id::ObjectId,
     kinds::activity::{CreateType, FollowType},
-    traits::ActivityHandler,
+    traits::{ActivityHandler, Actor},
 };
 use serde::{self, Deserialize, Serialize};
 use url::Url;
 
-use crate::error::Error;
+use crate::{error::Error, ACTIVITIES, RELAYS};
 use crate::{actors::DbRelay, apps::DbApp, APPS_LIST};
+use crate::RelayAcceptedActivities;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -18,6 +19,18 @@ pub struct Follow {
     #[serde(rename = "type")]
     pub kind: FollowType,
     pub id: Url,
+}
+
+
+impl Follow {
+    pub fn new(actor: ObjectId<DbRelay>, object: ObjectId<DbRelay>, id: Url) -> Follow {
+        Follow {
+            actor,
+            object,
+            kind: Default::default(),
+            id,
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -37,10 +50,21 @@ impl ActivityHandler for Follow {
         Ok(())
     }
 
-    async fn receive(self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        // let actor = self.actor.dereference(data).await?;
-        // let followed = self.object.dereference(data).await?;
-        // //data.add_follower(followed, actor).await?;
+    async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        let actor = self.actor.dereference(data).await?;
+        unsafe {
+            let new_relay = DbRelay::new(
+                actor.name.clone(),
+                actor.ap_id.clone(),
+                actor.inbox.clone(),
+                actor.outbox.clone(),
+                actor.public_key_pem().to_string(),
+                None,
+                false,
+            );
+            RELAYS.push(new_relay)
+        }
+        unsafe { ACTIVITIES.push(RelayAcceptedActivities::Follow(self)); }
         Ok(())
     }
 }
@@ -74,7 +98,10 @@ impl ActivityHandler for Create {
 
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         let experience = self.object.dereference(data).await?;
-        unsafe { APPS_LIST.push(experience) }
+        unsafe {
+            APPS_LIST.push(experience);
+            ACTIVITIES.push(RelayAcceptedActivities::Create(self));
+        }
         Ok(())
     }
 }
