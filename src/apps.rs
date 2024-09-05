@@ -23,14 +23,13 @@ pub struct DbApp {
 
 impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
     fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
-        let ap_id = row.try_get_raw("ap_id");
-        let ap_id = ap_id.unwrap().as_str().unwrap();
+        let ap_id: &str = row.try_get("activitypub_id")?;
         Ok(Self {
             ap_id: ObjectId::parse(ap_id).unwrap(),
             url: row.try_get("url")?,
             name: row.try_get("name")?,
             description: row.try_get("description")?,
-            active: row.try_get("active")?,
+            active: row.try_get("is_active")?,
         })
     }
 }

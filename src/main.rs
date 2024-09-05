@@ -78,7 +78,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let config = FederationConfig::builder()
         .domain(full_domain.clone())
-        .app_data(())
+        .app_data(AppState { db: pool.clone() })
         .debug(true)
         .build()
         .await?;
@@ -86,7 +86,6 @@ async fn main() -> Result<(), anyhow::Error> {
     let _ = HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
-            .app_data(Data::new(AppState { db: pool.clone() }))
             .wrap(FederationMiddleware::new(config.clone()))
             .wrap(cors)
             .service(http_get_system_user)

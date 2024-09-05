@@ -38,14 +38,17 @@ async fn hello() -> impl Responder {
 #[get("/relay/beacon/{id}")]
 async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responder {
     match sqlx::query_as::<_, DbApp>("SELECT * FROM apps WHERE id = $1")
-        .bind(info.into_inner())
+        .bind(info.into_inner() + 1)
         .fetch_one(&data.db)
         .await
     {
         Ok(app) => HttpResponse::Ok()
             .content_type(FEDERATION_CONTENT_TYPE)
             .json(app),
-        Err(_) => HttpResponse::NotFound().body("No beacon found"),
+        Err(e) => {
+            println!("Error fetching app from DB: {}", e);
+            HttpResponse::NotFound().body("No beacon found")
+        },
     }
 }
 

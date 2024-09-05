@@ -131,17 +131,17 @@ impl DbRelay {
 
 impl FromRow<'_, sqlx::postgres::PgRow> for DbRelay {
     fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
-        let ap_id = row.try_get_raw("ap_id");
+        let ap_id = row.try_get_raw("activitypub_id");
         let ap_id = ap_id.unwrap().as_str().unwrap();
         Ok(Self {
             ap_id: ObjectId::parse(ap_id).unwrap(),
-            name: row.try_get("name")?,
+            name: row.try_get("relay_name")?,
             inbox: Url::from_str(row.try_get("inbox")?).unwrap(),
             outbox: Url::from_str(row.try_get("outbox")?).unwrap(),
             public_key: row.try_get("public_key")?,
-            private_key: None,
+            private_key: row.try_get("private_key")?,
             last_refreshed_at: Utc::now(),
-            local: row.try_get("local")?,
+            local: row.try_get("is_local")?,
         })
     }
 }
