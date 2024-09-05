@@ -5,11 +5,12 @@ use activitypub_federation::{
     traits::{ActivityHandler, Actor},
 };
 use serde::{self, Deserialize, Serialize};
+use sqlx::{self, postgres::PgRow, FromRow, Row};
 use url::Url;
 
-use crate::{error::Error, ACTIVITIES, RELAYS};
-use crate::{actors::DbRelay, apps::DbApp, APPS_LIST};
-use crate::RelayAcceptedActivities;
+use crate::error::Error;
+use crate::{actors::DbRelay, apps::DbApp};
+use crate::{services::RelayAcceptedActivities, AppState};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -20,7 +21,6 @@ pub struct Follow {
     pub kind: FollowType,
     pub id: Url,
 }
-
 
 impl Follow {
     pub fn new(actor: ObjectId<DbRelay>, object: ObjectId<DbRelay>, id: Url) -> Follow {
@@ -33,9 +33,25 @@ impl Follow {
     }
 }
 
+impl FromRow<'_, sqlx::postgres::PgRow> for DbActivity {
+    fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
+        let actor = row.try_get_raw("actor");
+        let actor = actor.unwrap().as_str().unwrap();
+        let object = row.try_get_raw("object");
+        let object = object.unwrap().as_str().unwrap();
+        Ok(Self {
+            actor: ObjectId::parse(actor).unwrap(),
+            object: ObjectId::parse(object).unwrap(),
+            kind: "Follow".to_string(),
+            id: Url::parse(row.try_get("id")?).unwrap(),
+            ap_id: ObjectId::parse(row.try_get("ap_id")?).unwrap(),
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl ActivityHandler for Follow {
-    type DataType = ();
+    type DataType = AppState;
     type Error = Error;
 
     fn id(&self) -> &Url {
@@ -64,12 +80,14 @@ impl ActivityHandler for Follow {
             );
             RELAYS.push(new_relay)
         }
-        unsafe { ACTIVITIES.push(RelayAcceptedActivities::Follow(self)); }
+        unsafe {
+            ACTIVITIES.push(RelayAcceptedActivities::Follow(self));
+        }
         Ok(())
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug, FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Create {
     pub actor: ObjectId<DbRelay>,
@@ -81,7 +99,7 @@ pub struct Create {
 
 #[async_trait::async_trait]
 impl ActivityHandler for Create {
-    type DataType = ();
+    type DataType = AppState;
     type Error = Error;
 
     fn id(&self) -> &Url {
@@ -104,4 +122,12 @@ impl ActivityHandler for Create {
         }
         Ok(())
     }
+}
+
+pub struct DbActivity {
+    pub ap_id: ObjectId<DbRelay>,
+    pub actor: ObjectId<DbRelay>,
+    pub object: ObjectId<DbApp>,
+    pub id: Url,
+    pub kind: String,
 }

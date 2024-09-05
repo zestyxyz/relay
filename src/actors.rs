@@ -4,6 +4,7 @@ use std::str::FromStr;
 use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::activity_sending::SendActivityTask;
 use activitypub_federation::config::Data;
+use activitypub_federation::fetch::object_id;
 use activitypub_federation::fetch::webfinger::webfinger_resolve_actor;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::protocol::verification::verify_domains_match;
@@ -14,12 +15,14 @@ use activitypub_federation::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::postgres::PgRow;
+use sqlx::{self, FromRow, Row};
 use url::Url;
 
-use crate::activities::Follow;
+use crate::activities::{DbActivity, Follow};
 use crate::error::Error;
-use crate::RelayAcceptedActivities;
-use crate::{ACTIVITIES, RELAYS};
+use crate::services::RelayAcceptedActivities;
+use crate::AppState;
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,7 +48,6 @@ pub struct DbRelay {
     // exists only for local users
     private_key: Option<String>,
     pub last_refreshed_at: DateTime<Utc>,
-    pub followers: Vec<Url>,
     pub local: bool,
 }
 
@@ -67,7 +69,6 @@ impl DbRelay {
             public_key,
             private_key,
             last_refreshed_at: Utc::now(),
-            followers: Vec::new(),
             local,
         }
     }
@@ -77,7 +78,7 @@ impl DbRelay {
         activity: Activity,
         recipients: Vec<Url>,
         use_queue: bool,
-        data: &Data<()>,
+        data: &Data<AppState>,
     ) -> Result<(), Error>
     where
         Activity: ActivityHandler + Serialize + Debug + Send + Sync,
@@ -97,27 +98,57 @@ impl DbRelay {
         Ok(())
     }
 
-    pub fn followers(&self) -> &Vec<Url> {
-        &self.followers
-    }
-
     pub fn followers_url(&self) -> Result<Url, Error> {
         Ok(Url::parse(&format!("{}/followers", self.ap_id.inner()))?)
     }
 
-    pub async fn follow(&self, other: &str, data: &Data<()>) -> Result<(), Error> {
+    pub async fn follow(&self, other: &str, data: &Data<AppState>) -> Result<(), Error> {
         let other: DbRelay = webfinger_resolve_actor(other, data).await?;
-        let follow = Follow::new(self.ap_id.clone(), other.ap_id.clone(), Url::from_str(&format!("{}/activities/0", self.ap_id.inner().as_str()))?);
-        unsafe { ACTIVITIES.push(RelayAcceptedActivities::Follow(follow.clone())); }
-        self.send(follow, vec![other.shared_inbox_or_inbox()], false, data)
-            .await?;
-        Ok(())
+        let follow = Follow::new(
+            self.ap_id.clone(),
+            other.ap_id.clone(),
+            Url::from_str(&format!("{}/activities/0", self.ap_id.inner().as_str()))?,
+        );
+        match sqlx::query(
+            "INSERT INTO activities (id, actor, object, type) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(format!("{}/activities/0", self.ap_id.inner().as_str()))
+        .bind(self.ap_id.inner().as_str())
+        .bind(other.ap_id.inner().as_str())
+        .bind("Follow")
+        .execute(&data.db)
+        .await
+        {
+            Ok(_) => {
+                self.send(follow, vec![other.shared_inbox_or_inbox()], false, data)
+                    .await?;
+                Ok(())
+            }
+            Err(e) => Err(e.into()),
+        }
+    }
+}
+
+impl FromRow<'_, sqlx::postgres::PgRow> for DbRelay {
+    fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
+        let ap_id = row.try_get_raw("ap_id");
+        let ap_id = ap_id.unwrap().as_str().unwrap();
+        Ok(Self {
+            ap_id: ObjectId::parse(ap_id).unwrap(),
+            name: row.try_get("name")?,
+            inbox: Url::from_str(row.try_get("inbox")?).unwrap(),
+            outbox: Url::from_str(row.try_get("outbox")?).unwrap(),
+            public_key: row.try_get("public_key")?,
+            private_key: None,
+            last_refreshed_at: Utc::now(),
+            local: row.try_get("local")?,
+        })
     }
 }
 
 #[async_trait::async_trait]
 impl Object for DbRelay {
-    type DataType = ();
+    type DataType = AppState;
 
     type Kind = Relay;
 
@@ -125,14 +156,16 @@ impl Object for DbRelay {
 
     async fn read_from_id(
         object_id: Url,
-        _data: &Data<Self::DataType>,
+        data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        unsafe {
-            let relay = RELAYS.iter().find(|r| *r.ap_id.inner() == object_id);
-            match relay {
-                None => Ok(None),
-                Some(r) => Ok(Some(r.clone())),
-            }
+        match sqlx::query_as::<_, Self>("SELECT * FROM relay WHERE ap_id = $1")
+            .bind(object_id.as_str())
+            .fetch_optional(&data.db)
+            .await
+        {
+            Ok(Some(r)) => Ok(Some(r)),
+            Ok(None) => Ok(None),
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -147,7 +180,11 @@ impl Object for DbRelay {
             name: name.clone(),
             inbox: self.inbox,
             outbox: self.outbox,
-            public_key: PublicKey { id: name, owner, public_key_pem },
+            public_key: PublicKey {
+                id: name,
+                owner,
+                public_key_pem,
+            },
         })
     }
 
@@ -160,7 +197,10 @@ impl Object for DbRelay {
         Ok(())
     }
 
-    async fn from_json(json: Self::Kind, _data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
+    async fn from_json(
+        json: Self::Kind,
+        _data: &Data<Self::DataType>,
+    ) -> Result<Self, Self::Error> {
         let user = DbRelay {
             name: json.preferred_username,
             ap_id: json.id,
@@ -169,7 +209,6 @@ impl Object for DbRelay {
             public_key: json.public_key.public_key_pem,
             private_key: None,
             last_refreshed_at: Utc::now(),
-            followers: vec![],
             local: false,
         };
         // let mut mutex = data.users.lock().unwrap();
