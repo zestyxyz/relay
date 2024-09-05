@@ -1,6 +1,7 @@
 mod activities;
 mod actors;
 mod apps;
+mod db;
 mod error;
 mod services;
 
@@ -17,6 +18,7 @@ use actix_web::{
 };
 use dotenvy::dotenv;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use sqlx::types::chrono::{DateTime, Utc};
 
 use crate::services::{
     get_activity, get_beacon, get_experiences, get_relays, http_get_system_user,
@@ -44,32 +46,43 @@ async fn main() -> Result<(), anyhow::Error> {
         .await
         .expect("Error building a connection pool");
 
+    let mut full_domain = String::from(domain);
+    if port != "80" || port != "443" {
+        full_domain.push_str(":");
+        full_domain.push_str(&port);
+    }
+
     // Insert default system user if not already exists
-    match sqlx::query("SELECT * FROM relays WHERE id = 0 LIMIT 1;").fetch_optional(&pool).await {
-        Ok(Some(_)) => {},
+    match sqlx::query("SELECT * FROM relays WHERE id = 0 LIMIT 1;")
+        .fetch_optional(&pool)
+        .await
+    {
+        Ok(Some(_)) => {}
         Ok(None) => {
             let keypair = generate_actor_keypair().expect("Failed to generate actor keypair");
-            sqlx::query("INSERT INTO relays VALUES (0, $1, $2, $3, $4, $5, $6, $7);")
+            sqlx::query("INSERT INTO relays VALUES (0, $1, $2, $3, $4, $5, $6, $7, $8);")
                 .bind("relay".to_string())
-                .bind(format!("{}://{}/relay", protocol, domain))
-                .bind(format!("{}://{}/relay/inbox", protocol, domain))
-                .bind(format!("{}://{}/relay/outbox", protocol, domain))
+                .bind(format!("{}://{}/relay", protocol, full_domain.clone()))
+                .bind(format!("{}://{}/relay/inbox", protocol, full_domain.clone()))
+                .bind(format!("{}://{}/relay/outbox", protocol, full_domain.clone()))
                 .bind(keypair.public_key)
                 .bind(Some(keypair.private_key))
+                .bind(Utc::now())
                 .bind(true)
                 .execute(&pool)
                 .await
                 .expect("Error inserting default relay");
         }
-        Err(e) => println!("Error inserting default relay: {}", e),
+        Err(e) => println!("Error locating default relay: {}", e),
     };
 
     let config = FederationConfig::builder()
-        .domain(format!("{}", domain))
+        .domain(full_domain.clone())
         .app_data(())
         .debug(true)
         .build()
         .await?;
+    println!("Server listening on: {}://{}", protocol, full_domain);
     let _ = HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
@@ -90,6 +103,5 @@ async fn main() -> Result<(), anyhow::Error> {
     .bind(("127.0.0.1", u16::from_str(&port).unwrap()))?
     .run()
     .await;
-    println!("Server listening on: {}://{}:{}", protocol, domain, port);
     Ok(())
 }

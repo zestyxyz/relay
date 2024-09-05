@@ -4,9 +4,9 @@ CREATE TABLE IF NOT EXISTS relays (
   activitypub_id VARCHAR(255) NOT NULL,
   inbox VARCHAR(255) NOT NULL,
   outbox VARCHAR(255) NOT NULL,
-  public_key VARCHAR(255) NOT NULL,
+  public_key VARCHAR(2048) NOT NULL,
   -- exists only for local users
-  private_key VARCHAR(255),
+  private_key VARCHAR(4096),
   last_refreshed_at TIMESTAMP,
   is_local boolean NOT NULL
 );

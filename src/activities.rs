@@ -9,8 +9,8 @@ use sqlx::{self, postgres::PgRow, FromRow, Row};
 use url::Url;
 
 use crate::error::Error;
-use crate::{actors::DbRelay, apps::DbApp};
 use crate::AppState;
+use crate::{actors::DbRelay, apps::DbApp};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -62,13 +62,15 @@ impl ActivityHandler for Follow {
             .bind(false)
             .execute(&data.db)
             .await?;
-        sqlx::query("INSERT INTO activities (actor, object, kind, activity_id) VALUES ($1, $2, $3, $4)")
-            .bind(&self.actor.inner().as_str())
-            .bind(&self.object.inner().as_str())
-            .bind("Follow")
-            .bind(&self.id.as_str())
-            .execute(&data.db)
-            .await?;
+        sqlx::query(
+            "INSERT INTO activities (actor, object, kind, activity_id) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(&self.actor.inner().as_str())
+        .bind(&self.object.inner().as_str())
+        .bind("Follow")
+        .bind(&self.id.as_str())
+        .execute(&data.db)
+        .await?;
         Ok(())
     }
 }
@@ -110,17 +112,20 @@ impl ActivityHandler for Create {
             .bind(&experience.active)
             .execute(&data.db)
             .await?;
-        sqlx::query("INSERT INTO activities (actor, object, kind, activity_id) VALUES ($1, $2, $3, $4)")
-            .bind(&self.actor.inner().as_str())
-            .bind(&self.object.inner().as_str())
-            .bind("Create")
-            .bind(&self.id.as_str())
-            .execute(&data.db)
-            .await?;
+        sqlx::query(
+            "INSERT INTO activities (actor, object, kind, activity_id) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(&self.actor.inner().as_str())
+        .bind(&self.object.inner().as_str())
+        .bind("Create")
+        .bind(&self.id.as_str())
+        .execute(&data.db)
+        .await?;
         Ok(())
     }
 }
 
+#[derive(Serialize)]
 pub struct DbActivity {
     pub ap_id: ObjectId<DbRelay>,
     pub actor: ObjectId<DbRelay>,

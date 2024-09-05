@@ -1,4 +1,7 @@
+use std::str::FromStr;
+
 use activitypub_federation::actix_web::inbox::receive_activity;
+use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::fetch::webfinger::{build_webfinger_response, extract_webfinger_name};
 use activitypub_federation::kinds::activity::CreateType;
@@ -6,7 +9,7 @@ use activitypub_federation::kinds::actor::ServiceType;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor, Object};
 use activitypub_federation::FEDERATION_CONTENT_TYPE;
-use actix_web::web::{self, Bytes, Data};
+use actix_web::web::{self, Bytes};
 use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use sqlx::{self, FromRow};
@@ -15,6 +18,7 @@ use url::Url;
 use crate::activities::{Create, DbActivity, Follow};
 use crate::actors::{DbRelay, Relay};
 use crate::apps::DbApp;
+use crate::db::get_system_user;
 use crate::error::Error;
 use crate::{AppState, PORT};
 
@@ -51,10 +55,24 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let name = req_body.name.clone();
     let description = req_body.description.clone();
     let active = req_body.active;
-    let system_user = unsafe { SYSTEM_USER.clone().unwrap() };
+    let system_user = get_system_user(&data).await.unwrap();
     let domain = system_user.ap_id.inner().as_str();
+    let apps_count: i64 = match sqlx::query_scalar("SELECT COUNT(*) FROM apps")
+        .fetch_one(&data.db)
+        .await
+    {
+        Ok(count) => count,
+        Err(e) => panic!("Error fetching apps count: {}", e),
+    };
+    let activities_count: i64 = match sqlx::query_scalar("SELECT COUNT(*) FROM activities")
+        .fetch_one(&data.db)
+        .await
+    {
+        Ok(count) => count,
+        Err(e) => panic!("Error fetching apps count: {}", e),
+    };
     match sqlx::query("INSERT INTO apps (activitypub_id, url, name, description, is_active) VALUES ($1, $2, $3, $4, $5)")
-        .bind(domain)
+        .bind(format!("{}/beacon/{}", domain, apps_count))
         .bind(url)
         .bind(name)
         .bind(description)
@@ -63,31 +81,26 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         .await {
             Ok(_) => (),
             Err(e) => println!("Error inserting new beacon: {}", e),
-        }
-    unsafe {
-        APPS_LIST.push(DbApp::new(
-            ObjectId::parse(&format!("{}/beacon/{}", domain, apps_count)).unwrap(),
-            url,
-            name,
-            description,
-            active,
-        ));
-    }
+        };
     let activity = Create {
         actor: ObjectId::parse(domain).unwrap(),
         object: ObjectId::parse(&format!("{}/beacon/{}", domain, apps_count)).unwrap(),
         kind: CreateType::Create,
         id: Url::from_str(&format!("{}/activities/{}", domain, activities_count)).unwrap(),
     };
-    unsafe {
-        let recipients: Vec<Url> = RELAYS.iter().map(|relay| relay.inbox.clone()).collect();
-        let _ = SYSTEM_USER
-            .as_ref()
-            .unwrap()
-            .send(activity, recipients, false, &data)
+    let recipients: Vec<DbRelay> =
+        match sqlx::query_as("SELECT f.* FROM followers f WHERE f.relay_id = 0")
+            .fetch_all(&data.db)
             .await
-            .map_err(|e| println!("Error sending activity: {}", e));
-    }
+        {
+            Ok(relays) => relays,
+            Err(e) => panic!("Error fetching relays: {}", e),
+        };
+    let recipient_inboxes: Vec<Url> = recipients.iter().map(|relay| relay.inbox.clone()).collect();
+    let _ = system_user
+        .send(activity, recipient_inboxes, false, &data)
+        .await
+        .map_err(|e| println!("Error sending activity: {}", e));
     HttpResponse::Ok()
 }
 
@@ -196,7 +209,7 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
     if name != "relay" {
         return HttpResponse::NotFound().finish();
     }
-    let db_user = unsafe { SYSTEM_USER.clone().unwrap() };
+    let db_user = get_system_user(&data).await.unwrap();
     HttpResponse::Ok().json(build_webfinger_response(
         query.resource.clone(),
         db_user.ap_id.into_inner(),
@@ -205,7 +218,7 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
 
 #[get("/test_follow")]
 async fn test_follow(data: Data<AppState>) -> impl Responder {
-    let db_user = unsafe { SYSTEM_USER.clone().unwrap() };
+    let db_user = get_system_user(&data).await.unwrap();
     let port = unsafe { PORT.get() };
     let port = if port == 8000 { 8001 } else { 8000 };
     match db_user
