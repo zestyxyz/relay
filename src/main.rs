@@ -55,18 +55,10 @@ async fn main() -> Result<(), anyhow::Error> {
         Ok(None) => {
             let keypair = generate_actor_keypair().expect("Failed to generate actor keypair");
             sqlx::query("INSERT INTO relays VALUES (0, $1, $2, $3, $4, $5, $6, $7, $8);")
-                .bind(format!("{}://{}/relay", protocol, full_domain.clone()))
+                .bind(format!("{}://{}/relay", protocol, &full_domain))
                 .bind("relay".to_string())
-                .bind(format!(
-                    "{}://{}/relay/inbox",
-                    protocol,
-                    full_domain.clone()
-                ))
-                .bind(format!(
-                    "{}://{}/relay/outbox",
-                    protocol,
-                    full_domain.clone()
-                ))
+                .bind(format!("{}://{}/relay/inbox", protocol, &full_domain))
+                .bind(format!("{}://{}/relay/outbox", protocol, &full_domain))
                 .bind(keypair.public_key)
                 .bind(Some(keypair.private_key))
                 .bind(Utc::now())

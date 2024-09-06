@@ -4,7 +4,6 @@ use std::str::FromStr;
 use activitypub_federation::activity_queue::queue_activity;
 use activitypub_federation::activity_sending::SendActivityTask;
 use activitypub_federation::config::Data;
-use activitypub_federation::fetch::object_id;
 use activitypub_federation::fetch::webfinger::webfinger_resolve_actor;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::protocol::verification::verify_domains_match;
@@ -19,9 +18,8 @@ use sqlx::postgres::PgRow;
 use sqlx::{self, FromRow, Row};
 use url::Url;
 
-use crate::activities::{DbActivity, Follow};
+use crate::activities::Follow;
 use crate::error::Error;
-use crate::services::RelayAcceptedActivities;
 use crate::AppState;
 
 #[derive(Deserialize, Serialize)]
@@ -92,7 +90,6 @@ impl DbRelay {
             let sends = SendActivityTask::prepare(&activity, self, recipients, data).await?;
             for send in sends {
                 send.sign_and_send(data).await?;
-                println!("Should've sent activity now");
             }
         }
         Ok(())

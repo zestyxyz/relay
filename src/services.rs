@@ -7,19 +7,17 @@ use activitypub_federation::fetch::webfinger::{build_webfinger_response, extract
 use activitypub_federation::kinds::activity::CreateType;
 use activitypub_federation::kinds::actor::ServiceType;
 use activitypub_federation::protocol::context::WithContext;
-use activitypub_federation::traits::{ActivityHandler, Actor, Object};
+use activitypub_federation::traits::{ActivityHandler, Actor};
 use activitypub_federation::FEDERATION_CONTENT_TYPE;
 use actix_web::web::{self, Bytes};
 use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
-use sqlx::{self, FromRow};
 use url::Url;
 
 use crate::activities::{Create, DbActivity, Follow};
 use crate::actors::{DbRelay, Relay};
 use crate::apps::{App, DbApp};
 use crate::db::get_system_user;
-use crate::error::Error;
 use crate::AppState;
 
 #[derive(Deserialize)]
@@ -139,7 +137,6 @@ async fn get_relays(data: Data<AppState>) -> impl Responder {
 /// Handles requests to fetch system user json over HTTP
 #[get("/relay")]
 async fn http_get_system_user(data: Data<AppState>) -> impl Responder {
-    println!("Got a request for the system user");
     let user = sqlx::query_as::<_, DbRelay>("SELECT * FROM relays WHERE id = $1")
         .bind(0)
         .fetch_one(&data.db)
@@ -198,7 +195,7 @@ async fn http_post_relay_inbox(
 }
 
 pub async fn not_found(request: HttpRequest) -> impl Responder {
-    println!("Got request for: {}", request.uri().path());
+    println!("Got request for unknown route: {}", request.uri().path());
     HttpResponse::NotFound()
 }
 
@@ -212,8 +209,8 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
     let name = match extract_webfinger_name(&query.resource, &data) {
         Ok(name) => name,
         Err(e) => {
-            println!("{:?}", e);
-            "bad"
+            println!("Error during webfinger lookup: {:?}", e);
+            ""
         }
     };
     if name != "relay" {
