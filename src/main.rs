@@ -66,7 +66,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let config = FederationConfig::builder()
         .domain(full_domain.clone())
         .app_data(AppState { db: pool.clone() })
-        .debug(true)
+        .debug(false)
         .build()
         .await?;
     println!("Server listening on: {}", full_domain);
