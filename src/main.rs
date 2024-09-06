@@ -18,8 +18,8 @@ use sqlx::types::chrono::Utc;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
 use crate::services::{
-    get_activity, get_beacon, get_apps, get_relays, http_get_system_user,
-    http_post_relay_inbox, new_beacon, not_found, test_follow, webfinger,
+    get_activity, get_apps, get_beacon, get_relays, http_get_system_user, http_post_relay_inbox,
+    new_beacon, not_found, test_follow, webfinger,
 };
 
 #[derive(Clone)]

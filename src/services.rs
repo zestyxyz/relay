@@ -33,7 +33,9 @@ pub struct BeaconPayload {
 
 #[get("/")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("This is a test deployment of a spatial internet graph relay (name subject to change).")
+    HttpResponse::Ok().body(
+        "This is a test deployment of a spatial internet graph relay (name subject to change).",
+    )
 }
 
 #[get("/relay/beacon/{id}")]
@@ -194,17 +196,16 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
     ))
 }
 
-#[get("/test_follow")]
-async fn test_follow(data: Data<AppState>) -> impl Responder {
+#[post("/test_follow")]
+async fn test_follow(_request: HttpRequest, body: Bytes, data: Data<AppState>) -> HttpResponse {
     let db_user = get_system_user(&data).await.unwrap();
-    let port = std::env::var("PORT").expect("PORT must be set");
-    let port = u16::from_str(&port).unwrap();
-    let port = if port == 8000 { 8001 } else { 8000 };
-    match db_user
-        .follow(&format!("relay@localhost:{}", port), &data)
-        .await
-    {
-        Ok(_) => HttpResponse::Ok().body("Followed"),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    let follow_url = String::from_utf8(body.to_ascii_lowercase()).ok();
+    if let Some(url) = follow_url {
+        match db_user.follow(&url, &data).await {
+            Ok(_) => HttpResponse::Ok().body("Followed"),
+            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        }
+    } else {
+        HttpResponse::BadRequest().body("Bad request")
     }
 }
