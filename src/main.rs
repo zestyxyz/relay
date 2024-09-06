@@ -30,21 +30,14 @@ pub struct AppState {
 async fn main() -> Result<(), anyhow::Error> {
     dotenv().expect("Failed to locate .env file!");
 
-    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
+    let full_domain = env::var("FULL_DOMAIN").expect("FULL_DOMAIN must be set");
     let port = env::var("PORT").expect("PORT must be set");
-    let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
         .await
         .expect("Error building a connection pool");
-
-    let mut full_domain = String::from(domain);
-    if port != "80" || port != "443" {
-        full_domain.push_str(":");
-        full_domain.push_str(&port);
-    }
 
     // Insert default system user if not already exists
     match sqlx::query("SELECT * FROM relays WHERE id = 0 LIMIT 1;")
@@ -55,10 +48,10 @@ async fn main() -> Result<(), anyhow::Error> {
         Ok(None) => {
             let keypair = generate_actor_keypair().expect("Failed to generate actor keypair");
             sqlx::query("INSERT INTO relays VALUES (0, $1, $2, $3, $4, $5, $6, $7, $8);")
-                .bind(format!("{}://{}/relay", protocol, &full_domain))
+                .bind(format!("{}/relay", &full_domain))
                 .bind("relay".to_string())
-                .bind(format!("{}://{}/relay/inbox", protocol, &full_domain))
-                .bind(format!("{}://{}/relay/outbox", protocol, &full_domain))
+                .bind(format!("{}/relay/inbox", &full_domain))
+                .bind(format!("{}/relay/outbox", &full_domain))
                 .bind(keypair.public_key)
                 .bind(Some(keypair.private_key))
                 .bind(Utc::now())
@@ -76,7 +69,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .debug(true)
         .build()
         .await?;
-    println!("Server listening on: {}://{}", protocol, full_domain);
+    println!("Server listening on: {}", full_domain);
     let _ = HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
