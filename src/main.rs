@@ -13,6 +13,7 @@ use activitypub_federation::http_signatures::generate_actor_keypair;
 use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use dotenvy::dotenv;
+use services::hello;
 use sqlx::types::chrono::Utc;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
@@ -77,6 +78,7 @@ async fn main() -> Result<(), anyhow::Error> {
         App::new()
             .wrap(FederationMiddleware::new(config.clone()))
             .wrap(cors)
+            .service(hello)
             .service(http_get_system_user)
             .service(http_post_relay_inbox)
             .service(new_beacon)

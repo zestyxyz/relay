@@ -33,7 +33,7 @@ pub struct BeaconPayload {
 
 #[get("/")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
+    HttpResponse::Ok().body("This is a test deployment of a spatial internet graph relay (name subject to change).")
 }
 
 #[get("/relay/beacon/{id}")]
