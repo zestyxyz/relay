@@ -65,12 +65,12 @@ impl ActivityHandler for Follow {
         sqlx::query(
             "INSERT INTO activities (activitypub_id, actor, obj, kind) VALUES ($1, $2, $3, $4)",
         )
-            .bind(&self.actor.inner().as_str())
-            .bind(&self.object.inner().as_str())
-            .bind("Follow")
-            .bind(&self.id.as_str())
-            .execute(&data.db)
-            .await?;
+        .bind(&self.actor.inner().as_str())
+        .bind(&self.object.inner().as_str())
+        .bind("Follow")
+        .bind(&self.id.as_str())
+        .execute(&data.db)
+        .await?;
         let follower_id: i32 = sqlx::query("SELECT id FROM relays WHERE activitypub_id = $1")
             .bind(&actor.ap_id.inner().as_str())
             .fetch_one(&data.db)

@@ -67,6 +67,27 @@ pub struct App {
     summary: String,
 }
 
+impl App {
+    pub fn new(
+        id: ObjectId<DbApp>,
+        attributed_to: String,
+        to: Vec<String>,
+        content: String,
+        name: String,
+        summary: String,
+    ) -> Self {
+        Self {
+            kind: PageType::Page,
+            id,
+            attributed_to,
+            to,
+            content,
+            name,
+            summary,
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl Object for DbApp {
     type DataType = AppState;
@@ -77,7 +98,7 @@ impl Object for DbApp {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        match sqlx::query_as::<_, Self>("SELECT * FROM relay WHERE ap_id = $1")
+        match sqlx::query_as::<_, Self>("SELECT * FROM relays WHERE activitypub_id = $1")
             .bind(object_id.as_str())
             .fetch_optional(&data.db)
             .await

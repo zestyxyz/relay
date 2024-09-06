@@ -17,7 +17,7 @@ use url::Url;
 
 use crate::activities::{Create, DbActivity, Follow};
 use crate::actors::{DbRelay, Relay};
-use crate::apps::DbApp;
+use crate::apps::{App, DbApp};
 use crate::db::get_system_user;
 use crate::error::Error;
 use crate::AppState;
@@ -44,7 +44,14 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
     {
         Ok(app) => HttpResponse::Ok()
             .content_type(FEDERATION_CONTENT_TYPE)
-            .json(app),
+            .json(App::new(
+                app.ap_id,
+                String::new(),
+                vec![],
+                app.url,
+                app.name,
+                app.description,
+            )),
         Err(e) => {
             println!("Error fetching app from DB: {}", e);
             HttpResponse::NotFound().body("No beacon found")
@@ -92,7 +99,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         id: Url::from_str(&format!("{}/activities/{}", domain, activities_count)).unwrap(),
     };
     let recipients: Vec<DbRelay> =
-        match sqlx::query_as("SELECT f.* FROM followers f WHERE f.relay_id = 0")
+        match sqlx::query_as("SELECT f.*, r.* FROM followers f JOIN relays r ON f.follower_id = r.id WHERE f.relay_id = 0")
             .fetch_all(&data.db)
             .await
         {
