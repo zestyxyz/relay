@@ -95,8 +95,8 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     HttpResponse::Ok()
 }
 
-#[get("/experiences")]
-async fn get_experiences(data: Data<AppState>) -> impl Responder {
+#[get("/apps")]
+async fn get_apps(data: Data<AppState>) -> impl Responder {
     match get_all_apps(&data).await {
         Ok(apps) => HttpResponse::Ok().json(apps),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),

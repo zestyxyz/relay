@@ -110,14 +110,14 @@ impl ActivityHandler for Create {
     }
 
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        let experience = self.object.dereference(data).await?;
+        let app = self.object.dereference(data).await?;
         create_app(
             data,
-            experience.ap_id.inner().to_string(),
-            experience.url,
-            experience.name,
-            experience.description,
-            experience.active,
+            app.ap_id.inner().to_string(),
+            app.url,
+            app.name,
+            app.description,
+            app.active,
         )
         .await?;
         create_activity(
