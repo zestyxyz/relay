@@ -8,9 +8,14 @@ use serde::{self, Deserialize, Serialize};
 use sqlx::{self, postgres::PgRow, FromRow, Row};
 use url::Url;
 
+use crate::actors::DbRelay;
+use crate::apps::DbApp;
+use crate::db::{
+    add_follower_to_relay, create_activity, create_app, create_relay,
+    get_relay_follower_id_by_ap_id,
+};
 use crate::error::Error;
 use crate::AppState;
-use crate::{actors::DbRelay, apps::DbApp};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -52,35 +57,26 @@ impl ActivityHandler for Follow {
 
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         let actor = self.actor.dereference(data).await?;
-        sqlx::query("INSERT INTO relays (relay_name, activitypub_id, inbox, outbox, public_key, private_key, is_local) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-            .bind(&actor.name)
-            .bind(&actor.ap_id.inner().as_str())
-            .bind(&actor.inbox.as_str())
-            .bind(&actor.outbox.as_str())
-            .bind(&actor.public_key_pem())
-            .bind(None::<String>)
-            .bind(false)
-            .execute(&data.db)
-            .await?;
-        sqlx::query(
-            "INSERT INTO activities (activitypub_id, actor, obj, kind) VALUES ($1, $2, $3, $4)",
+        let actor_ap_id = actor.ap_id.inner().as_str();
+        create_relay(
+            data,
+            &actor.name,
+            actor_ap_id,
+            &actor.inbox.as_str(),
+            &actor.outbox.as_str(),
+            &actor.public_key_pem(),
         )
-        .bind(&self.actor.inner().as_str())
-        .bind(&self.object.inner().as_str())
-        .bind("Follow")
-        .bind(&self.id.as_str())
-        .execute(&data.db)
         .await?;
-        let follower_id: i32 = sqlx::query("SELECT id FROM relays WHERE activitypub_id = $1")
-            .bind(&actor.ap_id.inner().as_str())
-            .fetch_one(&data.db)
-            .await?
-            .try_get("id")?;
-        sqlx::query("INSERT INTO followers (relay_id, follower_id) VALUES ($1, $2)")
-            .bind(0) // Only relay system user can be followed
-            .bind(follower_id)
-            .execute(&data.db)
-            .await?;
+        create_activity(
+            data,
+            self.id.to_string(),
+            actor_ap_id,
+            &self.object.inner().as_str(),
+            "Follow",
+        )
+        .await?;
+        let follower_id = get_relay_follower_id_by_ap_id(data, actor_ap_id).await?;
+        add_follower_to_relay(data, follower_id).await?;
 
         Ok(())
     }
@@ -115,22 +111,22 @@ impl ActivityHandler for Create {
 
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         let experience = self.object.dereference(data).await?;
-        sqlx::query("INSERT INTO apps (activitypub_id, url, name, description, is_active) VALUES ($1, $2, $3, $4, $5)")
-            .bind(&experience.ap_id.inner().as_str())
-            .bind(&experience.url)
-            .bind(&experience.name)
-            .bind(&experience.description)
-            .bind(&experience.active)
-            .execute(&data.db)
-            .await?;
-        sqlx::query(
-            "INSERT INTO activities (activitypub_id, actor, obj, kind) VALUES ($1, $2, $3, $4)",
+        create_app(
+            data,
+            experience.ap_id.inner().to_string(),
+            experience.url,
+            experience.name,
+            experience.description,
+            experience.active,
         )
-        .bind(&self.id.as_str())
-        .bind(&self.actor.inner().as_str())
-        .bind(&self.object.inner().as_str())
-        .bind("Create")
-        .execute(&data.db)
+        .await?;
+        create_activity(
+            data,
+            self.id.to_string(),
+            self.actor.inner().as_str(),
+            self.object.inner().as_str(),
+            "Create",
+        )
         .await?;
         Ok(())
     }

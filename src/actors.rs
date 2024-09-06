@@ -19,6 +19,7 @@ use sqlx::{self, FromRow, Row};
 use url::Url;
 
 use crate::activities::Follow;
+use crate::db::{create_activity, get_activities_count, get_relay_by_ap_id};
 use crate::error::Error;
 use crate::AppState;
 
@@ -101,10 +102,7 @@ impl DbRelay {
 
     pub async fn follow(&self, other: &str, data: &Data<AppState>) -> Result<(), Error> {
         let other: DbRelay = webfinger_resolve_actor(other, data).await?;
-        let activities_count: i64 = match sqlx::query_scalar("SELECT COUNT(*) FROM activities")
-            .fetch_one(&data.db)
-            .await
-        {
+        let activities_count = match get_activities_count(data).await {
             Ok(count) => count,
             Err(e) => panic!("Error fetching apps count: {}", e),
         };
@@ -117,18 +115,17 @@ impl DbRelay {
                 activities_count
             ))?,
         );
-        match sqlx::query(
-            "INSERT INTO activities (activitypub_id, actor, obj, kind) VALUES ($1, $2, $3, $4)",
-        )
-        .bind(format!(
-            "{}/activities/{}",
+        match create_activity(
+            data,
+            format!(
+                "{}/activities/{}",
+                self.ap_id.inner().as_str(),
+                activities_count
+            ),
             self.ap_id.inner().as_str(),
-            activities_count
-        ))
-        .bind(self.ap_id.inner().as_str())
-        .bind(other.ap_id.inner().as_str())
-        .bind("Follow")
-        .execute(&data.db)
+            other.ap_id.inner().as_str(),
+            "Follow",
+        )
         .await
         {
             Ok(_) => {
@@ -170,11 +167,7 @@ impl Object for DbRelay {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        match sqlx::query_as::<_, Self>("SELECT * FROM relays WHERE activitypub_id = $1")
-            .bind(object_id.as_str())
-            .fetch_optional(&data.db)
-            .await
-        {
+        match get_relay_by_ap_id(object_id.to_string(), data).await {
             Ok(Some(r)) => Ok(Some(r)),
             Ok(None) => Ok(None),
             Err(e) => Err(e.into()),
@@ -223,8 +216,6 @@ impl Object for DbRelay {
             last_refreshed_at: Utc::now(),
             local: false,
         };
-        // let mut mutex = data.users.lock().unwrap();
-        // mutex.push(user.clone());
         Ok(user)
     }
 }

@@ -17,7 +17,10 @@ use url::Url;
 use crate::activities::{Create, DbActivity, Follow};
 use crate::actors::{DbRelay, Relay};
 use crate::apps::{App, DbApp};
-use crate::db::get_system_user;
+use crate::db::{
+    create_app, get_activities_count, get_activity_by_id, get_all_apps, get_all_relays,
+    get_app_by_id, get_apps_count, get_relay_by_id, get_relay_followers, get_system_user,
+};
 use crate::AppState;
 
 #[derive(Deserialize)]
@@ -35,11 +38,7 @@ async fn hello() -> impl Responder {
 
 #[get("/relay/beacon/{id}")]
 async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responder {
-    match sqlx::query_as::<_, DbApp>("SELECT * FROM apps WHERE id = $1")
-        .bind(info.into_inner() + 1)
-        .fetch_one(&data.db)
-        .await
-    {
+    match get_app_by_id(info.into_inner() + 1, &data).await {
         Ok(app) => HttpResponse::Ok()
             .content_type(FEDERATION_CONTENT_TYPE)
             .json(App::new(
@@ -65,45 +64,29 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let active = req_body.active;
     let system_user = get_system_user(&data).await.unwrap();
     let domain = system_user.ap_id.inner().as_str();
-    let apps_count: i64 = match sqlx::query_scalar("SELECT COUNT(*) FROM apps")
-        .fetch_one(&data.db)
-        .await
-    {
+    let apps_count = match get_apps_count(&data).await {
         Ok(count) => count,
         Err(e) => panic!("Error fetching apps count: {}", e),
     };
-    let activities_count: i64 = match sqlx::query_scalar("SELECT COUNT(*) FROM activities")
-        .fetch_one(&data.db)
-        .await
-    {
+    let activities_count: i64 = match get_activities_count(&data).await {
         Ok(count) => count,
-        Err(e) => panic!("Error fetching apps count: {}", e),
+        Err(e) => panic!("Error fetching activities count: {}", e),
     };
-    match sqlx::query("INSERT INTO apps (activitypub_id, url, name, description, is_active) VALUES ($1, $2, $3, $4, $5)")
-        .bind(format!("{}/beacon/{}", domain, apps_count))
-        .bind(url)
-        .bind(name)
-        .bind(description)
-        .bind(active)
-        .execute(&data.db)
-        .await {
-            Ok(_) => (),
-            Err(e) => println!("Error inserting new beacon: {}", e),
-        };
+    let ap_id = format!("{}/beacon/{}", domain, apps_count);
+    match create_app(&data, ap_id, url, name, description, active).await {
+        Ok(_) => (),
+        Err(e) => println!("Error inserting new beacon: {}", e),
+    };
     let activity = Create {
         actor: ObjectId::parse(domain).unwrap(),
         object: ObjectId::parse(&format!("{}/beacon/{}", domain, apps_count)).unwrap(),
         kind: CreateType::Create,
         id: Url::from_str(&format!("{}/activities/{}", domain, activities_count)).unwrap(),
     };
-    let recipients: Vec<DbRelay> =
-        match sqlx::query_as("SELECT f.*, r.* FROM followers f JOIN relays r ON f.follower_id = r.id WHERE f.relay_id = 0")
-            .fetch_all(&data.db)
-            .await
-        {
-            Ok(relays) => relays,
-            Err(e) => panic!("Error fetching relays: {}", e),
-        };
+    let recipients: Vec<DbRelay> = match get_relay_followers(&data).await {
+        Ok(relays) => relays,
+        Err(e) => panic!("Error fetching relays: {}", e),
+    };
     let recipient_inboxes: Vec<Url> = recipients.iter().map(|relay| relay.inbox.clone()).collect();
     let _ = system_user
         .send(activity, recipient_inboxes, false, &data)
@@ -114,10 +97,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
 
 #[get("/experiences")]
 async fn get_experiences(data: Data<AppState>) -> impl Responder {
-    match sqlx::query_as::<_, DbApp>("SELECT * FROM apps")
-        .fetch_all(&data.db)
-        .await
-    {
+    match get_all_apps(&data).await {
         Ok(apps) => HttpResponse::Ok().json(apps),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -125,10 +105,7 @@ async fn get_experiences(data: Data<AppState>) -> impl Responder {
 
 #[get("/relays")]
 async fn get_relays(data: Data<AppState>) -> impl Responder {
-    match sqlx::query_as::<_, DbRelay>("SELECT * FROM relays")
-        .fetch_all(&data.db)
-        .await
-    {
+    match get_all_relays(&data).await {
         Ok(relays) => HttpResponse::Ok().json(relays),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -137,11 +114,9 @@ async fn get_relays(data: Data<AppState>) -> impl Responder {
 /// Handles requests to fetch system user json over HTTP
 #[get("/relay")]
 async fn http_get_system_user(data: Data<AppState>) -> impl Responder {
-    let user = sqlx::query_as::<_, DbRelay>("SELECT * FROM relays WHERE id = $1")
-        .bind(0)
-        .fetch_one(&data.db)
+    let user = get_relay_by_id(0, &data)
         .await
-        .unwrap();
+        .expect("Failed to get system user!");
     let json_user = Relay {
         id: user.ap_id.clone(),
         kind: ServiceType::Service,
@@ -158,11 +133,7 @@ async fn http_get_system_user(data: Data<AppState>) -> impl Responder {
 
 #[get("relay/activities/{id}")]
 async fn get_activity(info: web::Path<i32>, data: Data<AppState>) -> impl Responder {
-    match sqlx::query_as::<_, DbActivity>("SELECT * FROM activities WHERE id = $1")
-        .bind(info.into_inner())
-        .fetch_one(&data.db)
-        .await
-    {
+    match get_activity_by_id(info.into_inner(), &data).await {
         Ok(activity) => HttpResponse::Ok()
             .content_type(FEDERATION_CONTENT_TYPE)
             .json(activity),

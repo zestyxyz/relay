@@ -8,6 +8,7 @@ use sqlx::postgres::PgRow;
 use sqlx::{self, FromRow, Row};
 use url::Url;
 
+use crate::db::get_app_by_ap_id;
 use crate::error::Error;
 use crate::AppState;
 
@@ -98,11 +99,7 @@ impl Object for DbApp {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        match sqlx::query_as::<_, Self>("SELECT * FROM relays WHERE activitypub_id = $1")
-            .bind(object_id.as_str())
-            .fetch_optional(&data.db)
-            .await
-        {
+        match get_app_by_ap_id(data, object_id.as_str()).await {
             Ok(Some(r)) => Ok(Some(r)),
             Ok(None) => Ok(None),
             Err(e) => Err(e.into()),
