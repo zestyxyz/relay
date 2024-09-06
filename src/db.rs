@@ -160,7 +160,7 @@ pub async fn get_relay_follower_id_by_ap_id(
     ap_id: &str,
 ) -> Result<i32, Error> {
     let db = &data.db;
-    let follower_id: i32 = sqlx::query("SELECT follower_id FROM followers WHERE relay_id = $1")
+    let follower_id: i32 = sqlx::query("SELECT * FROM relays WHERE activitypub_id = $1")
         .bind(ap_id)
         .fetch_one(db)
         .await?
