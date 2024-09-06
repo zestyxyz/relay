@@ -20,7 +20,7 @@ use crate::actors::{DbRelay, Relay};
 use crate::apps::DbApp;
 use crate::db::get_system_user;
 use crate::error::Error;
-use crate::{AppState, PORT};
+use crate::AppState;
 
 #[derive(Deserialize)]
 pub struct BeaconPayload {
@@ -48,7 +48,7 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
         Err(e) => {
             println!("Error fetching app from DB: {}", e);
             HttpResponse::NotFound().body("No beacon found")
-        },
+        }
     }
 }
 
@@ -222,7 +222,8 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
 #[get("/test_follow")]
 async fn test_follow(data: Data<AppState>) -> impl Responder {
     let db_user = get_system_user(&data).await.unwrap();
-    let port = unsafe { PORT.get() };
+    let port = std::env::var("PORT").expect("PORT must be set");
+    let port = u16::from_str(&port).unwrap();
     let port = if port == 8000 { 8001 } else { 8000 };
     match db_user
         .follow(&format!("relay@localhost:{}", port), &data)

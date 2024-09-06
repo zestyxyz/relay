@@ -104,15 +104,30 @@ impl DbRelay {
 
     pub async fn follow(&self, other: &str, data: &Data<AppState>) -> Result<(), Error> {
         let other: DbRelay = webfinger_resolve_actor(other, data).await?;
+        let activities_count: i64 = match sqlx::query_scalar("SELECT COUNT(*) FROM activities")
+            .fetch_one(&data.db)
+            .await
+        {
+            Ok(count) => count,
+            Err(e) => panic!("Error fetching apps count: {}", e),
+        };
         let follow = Follow::new(
             self.ap_id.clone(),
             other.ap_id.clone(),
-            Url::from_str(&format!("{}/activities/0", self.ap_id.inner().as_str()))?,
+            Url::from_str(&format!(
+                "{}/activities/{}",
+                self.ap_id.inner().as_str(),
+                activities_count
+            ))?,
         );
         match sqlx::query(
-            "INSERT INTO activities (id, actor, object, type) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO activities (activitypub_id, actor, obj, kind) VALUES ($1, $2, $3, $4)",
         )
-        .bind(format!("{}/activities/0", self.ap_id.inner().as_str()))
+        .bind(format!(
+            "{}/activities/{}",
+            self.ap_id.inner().as_str(),
+            activities_count
+        ))
         .bind(self.ap_id.inner().as_str())
         .bind(other.ap_id.inner().as_str())
         .bind("Follow")
@@ -158,7 +173,7 @@ impl Object for DbRelay {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        match sqlx::query_as::<_, Self>("SELECT * FROM relay WHERE ap_id = $1")
+        match sqlx::query_as::<_, Self>("SELECT * FROM relays WHERE activitypub_id = $1")
             .bind(object_id.as_str())
             .fetch_optional(&data.db)
             .await

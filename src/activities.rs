@@ -52,7 +52,7 @@ impl ActivityHandler for Follow {
 
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
         let actor = self.actor.dereference(data).await?;
-        sqlx::query("INSERT INTO relays (name, ap_id, inbox, outbox, public_key, private_key, local) VALUES ($1, $2, $3, $4, $5, $6, $7)")
+        sqlx::query("INSERT INTO relays (relay_name, activitypub_id, inbox, outbox, public_key, private_key, is_local) VALUES ($1, $2, $3, $4, $5, $6, $7)")
             .bind(&actor.name)
             .bind(&actor.ap_id.inner().as_str())
             .bind(&actor.inbox.as_str())
@@ -63,14 +63,25 @@ impl ActivityHandler for Follow {
             .execute(&data.db)
             .await?;
         sqlx::query(
-            "INSERT INTO activities (actor, object, kind, activity_id) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO activities (activitypub_id, actor, obj, kind) VALUES ($1, $2, $3, $4)",
         )
-        .bind(&self.actor.inner().as_str())
-        .bind(&self.object.inner().as_str())
-        .bind("Follow")
-        .bind(&self.id.as_str())
-        .execute(&data.db)
-        .await?;
+            .bind(&self.actor.inner().as_str())
+            .bind(&self.object.inner().as_str())
+            .bind("Follow")
+            .bind(&self.id.as_str())
+            .execute(&data.db)
+            .await?;
+        let follower_id: i32 = sqlx::query("SELECT id FROM relays WHERE activitypub_id = $1")
+            .bind(&actor.ap_id.inner().as_str())
+            .fetch_one(&data.db)
+            .await?
+            .try_get("id")?;
+        sqlx::query("INSERT INTO followers (relay_id, follower_id) VALUES ($1, $2)")
+            .bind(0) // Only relay system user can be followed
+            .bind(follower_id)
+            .execute(&data.db)
+            .await?;
+
         Ok(())
     }
 }
@@ -113,12 +124,12 @@ impl ActivityHandler for Create {
             .execute(&data.db)
             .await?;
         sqlx::query(
-            "INSERT INTO activities (actor, object, kind, activity_id) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO activities (activitypub_id, actor, obj, kind) VALUES ($1, $2, $3, $4)",
         )
+        .bind(&self.id.as_str())
         .bind(&self.actor.inner().as_str())
         .bind(&self.object.inner().as_str())
         .bind("Create")
-        .bind(&self.id.as_str())
         .execute(&data.db)
         .await?;
         Ok(())
@@ -138,14 +149,14 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbActivity {
     fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
         let actor = row.try_get_raw("actor");
         let actor = actor.unwrap().as_str().unwrap();
-        let object = row.try_get_raw("object");
+        let object = row.try_get_raw("obj");
         let object = object.unwrap().as_str().unwrap();
         Ok(Self {
             actor: ObjectId::parse(actor).unwrap(),
             object: ObjectId::parse(object).unwrap(),
             kind: "Follow".to_string(),
             id: Url::parse(row.try_get("id")?).unwrap(),
-            ap_id: ObjectId::parse(row.try_get("ap_id")?).unwrap(),
+            ap_id: ObjectId::parse(row.try_get("activitypub_id")?).unwrap(),
         })
     }
 }

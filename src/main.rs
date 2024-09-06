@@ -5,27 +5,21 @@ mod db;
 mod error;
 mod services;
 
-use std::cell::Cell;
 use std::env;
 use std::str::FromStr;
 
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use activitypub_federation::http_signatures::generate_actor_keypair;
 use actix_cors::Cors;
-use actix_web::{
-    web::{self, Data},
-    App, HttpServer,
-};
+use actix_web::{web, App, HttpServer};
 use dotenvy::dotenv;
+use sqlx::types::chrono::Utc;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
-use sqlx::types::chrono::{DateTime, Utc};
 
 use crate::services::{
     get_activity, get_beacon, get_experiences, get_relays, http_get_system_user,
     http_post_relay_inbox, new_beacon, not_found, test_follow, webfinger,
 };
-
-static mut PORT: Cell<u16> = Cell::new(8000);
 
 #[derive(Clone)]
 pub struct AppState {
@@ -61,10 +55,18 @@ async fn main() -> Result<(), anyhow::Error> {
         Ok(None) => {
             let keypair = generate_actor_keypair().expect("Failed to generate actor keypair");
             sqlx::query("INSERT INTO relays VALUES (0, $1, $2, $3, $4, $5, $6, $7, $8);")
-                .bind("relay".to_string())
                 .bind(format!("{}://{}/relay", protocol, full_domain.clone()))
-                .bind(format!("{}://{}/relay/inbox", protocol, full_domain.clone()))
-                .bind(format!("{}://{}/relay/outbox", protocol, full_domain.clone()))
+                .bind("relay".to_string())
+                .bind(format!(
+                    "{}://{}/relay/inbox",
+                    protocol,
+                    full_domain.clone()
+                ))
+                .bind(format!(
+                    "{}://{}/relay/outbox",
+                    protocol,
+                    full_domain.clone()
+                ))
                 .bind(keypair.public_key)
                 .bind(Some(keypair.private_key))
                 .bind(Utc::now())
