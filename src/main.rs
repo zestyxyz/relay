@@ -30,8 +30,10 @@ pub struct AppState {
 async fn main() -> Result<(), anyhow::Error> {
     dotenv().expect("Failed to locate .env file!");
 
-    let full_domain = env::var("FULL_DOMAIN").expect("FULL_DOMAIN must be set");
+    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
     let port = env::var("PORT").expect("PORT must be set");
+    let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
+    let full_domain = format!("{}{}", protocol, domain);
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPoolOptions::new()
         .max_connections(5)
