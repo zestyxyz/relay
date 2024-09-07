@@ -67,7 +67,7 @@ async fn main() -> Result<(), anyhow::Error> {
     };
 
     let config = FederationConfig::builder()
-        .domain(full_domain.clone())
+        .domain(domain.clone())
         .app_data(AppState { db: pool.clone() })
         .debug(false)
         .build()
