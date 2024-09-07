@@ -90,7 +90,7 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(webfinger)
             .default_service(web::to(not_found))
     })
-    .bind(("127.0.0.1", u16::from_str(&port).unwrap()))?
+    .bind(("0.0.0.0", u16::from_str(&port).unwrap()))?
     .run()
     .await;
     Ok(())
