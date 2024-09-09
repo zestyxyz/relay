@@ -21,4 +21,4 @@ jobs:
           cd ${{ secrets.DIR }}
           docker compose down
           git pull
-          docker-compose up -d
+          docker compose up -d
