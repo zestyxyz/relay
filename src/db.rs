@@ -32,6 +32,15 @@ pub async fn get_app_by_ap_id(data: &Data<AppState>, ap_id: &str) -> Result<Opti
     Ok(app)
 }
 
+pub async fn get_app_by_url(data: &Data<AppState>, url: &str) -> Result<Option<DbApp>, Error> {
+    let db = &data.db;
+    let app = sqlx::query_as::<_, DbApp>("SELECT * FROM apps WHERE url = $1")
+        .bind(url)
+        .fetch_optional(db)
+        .await?;
+    Ok(app)
+}
+
 pub async fn get_all_apps(data: &Data<AppState>) -> Result<Vec<DbApp>, Error> {
     let db = &data.db;
     let apps = sqlx::query_as::<_, DbApp>("SELECT * FROM apps")
@@ -63,6 +72,24 @@ pub async fn create_app(
         .bind(name)
         .bind(description)
         .bind(is_active)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn update_app(
+    data: &Data<AppState>,
+    url: String,
+    name: String,
+    description: String,
+    is_active: bool,
+) -> Result<(), Error> {
+    let db = &data.db;
+    sqlx::query("UPDATE apps SET name = $1, description = $2, is_active = $3 WHERE url = $4")
+        .bind(name)
+        .bind(description)
+        .bind(is_active)
+        .bind(url)
         .execute(db)
         .await?;
     Ok(())

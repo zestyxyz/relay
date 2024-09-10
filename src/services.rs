@@ -14,12 +14,13 @@ use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::activities::{Create, DbActivity, Follow};
+use crate::activities::{Create, Follow};
 use crate::actors::{DbRelay, Relay};
-use crate::apps::{App, DbApp};
+use crate::apps::App;
 use crate::db::{
     create_app, get_activities_count, get_activity_by_id, get_all_apps, get_all_relays,
-    get_app_by_id, get_apps_count, get_relay_by_id, get_relay_followers, get_system_user,
+    get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id, get_relay_followers,
+    get_system_user, update_app,
 };
 use crate::AppState;
 
@@ -60,10 +61,13 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
 
 #[put("/beacon")]
 async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) -> impl Responder {
+    // Extract fields from request body
     let url = req_body.url.clone();
     let name = req_body.name.clone();
     let description = req_body.description.clone();
     let active = req_body.active;
+
+    // Query system user and DB information
     let system_user = get_system_user(&data).await.unwrap();
     let domain = system_user.ap_id.inner().as_str();
     let apps_count = match get_apps_count(&data).await {
@@ -74,7 +78,26 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         Ok(count) => count,
         Err(e) => panic!("Error fetching activities count: {}", e),
     };
+
+    // Check if app already exists, if so return 304
     let ap_id = format!("{}/beacon/{}", domain, apps_count);
+    match get_app_by_url(&data, &url).await {
+        Ok(Some(app)) => {
+            if app.name != name || app.description != description || app.active != active {
+                match update_app(&data, url.clone(), name.clone(), description.clone(), active).await {
+                    // TODO: Send update activity to following relays
+                    Ok(_) => return HttpResponse::Ok(),
+                    Err(e) => println!("Error updating app: {}", e),
+                }
+            } else {
+                return HttpResponse::NotModified();
+            }
+        },
+        Ok(None) => {},
+        Err(e) => println!("Error fetching app from DB: {}", e),
+    }
+
+    // Create new app and send create activity to following relays
     match create_app(&data, ap_id, url, name, description, active).await {
         Ok(_) => (),
         Err(e) => println!("Error inserting new beacon: {}", e),
@@ -94,6 +117,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         .send(activity, recipient_inboxes, false, &data)
         .await
         .map_err(|e| println!("Error sending activity: {}", e));
+
     HttpResponse::Ok()
 }
 
