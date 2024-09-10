@@ -1,14 +1,13 @@
 use activitypub_federation::{
     config::Data,
     fetch::object_id::ObjectId,
-    kinds::activity::{CreateType, FollowType},
+    kinds::activity::{CreateType, FollowType, UpdateType},
     traits::{ActivityHandler, Actor},
 };
 use serde::{self, Deserialize, Serialize};
 use sqlx::{self, postgres::PgRow, FromRow, Row};
 use url::Url;
 
-use crate::actors::DbRelay;
 use crate::apps::DbApp;
 use crate::db::{
     add_follower_to_relay, create_activity, create_app, create_relay,
@@ -16,6 +15,7 @@ use crate::db::{
 };
 use crate::error::Error;
 use crate::AppState;
+use crate::{actors::DbRelay, db::update_app};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -132,6 +132,48 @@ impl ActivityHandler for Create {
     }
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Update {
+    pub actor: ObjectId<DbRelay>,
+    pub object: ObjectId<DbApp>,
+    #[serde(rename = "type")]
+    pub kind: UpdateType,
+    pub id: Url,
+}
+
+#[async_trait::async_trait]
+impl ActivityHandler for Update {
+    type DataType = AppState;
+    type Error = Error;
+
+    fn id(&self) -> &Url {
+        &self.id
+    }
+
+    fn actor(&self) -> &Url {
+        self.actor.inner()
+    }
+
+    async fn verify(&self, _data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        let app = self.object.dereference(data).await?;
+        update_app(data, app.name, app.description, app.url, app.active).await?;
+        create_activity(
+            data,
+            self.id.to_string(),
+            self.actor.inner().as_str(),
+            self.object.inner().as_str(),
+            "Update",
+        )
+        .await?;
+        Ok(())
+    }
+}
+
 #[derive(Serialize)]
 pub struct DbActivity {
     pub ap_id: ObjectId<DbRelay>,
@@ -150,7 +192,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbActivity {
         Ok(Self {
             actor: ObjectId::parse(actor).unwrap(),
             object: ObjectId::parse(object).unwrap(),
-            kind: "Follow".to_string(),
+            kind: row.try_get("kind")?,
             id: Url::parse(row.try_get("id")?).unwrap(),
             ap_id: ObjectId::parse(row.try_get("activitypub_id")?).unwrap(),
         })

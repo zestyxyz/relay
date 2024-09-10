@@ -14,7 +14,7 @@ use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::activities::{Create, Follow};
+use crate::activities::{Create, Follow, Update};
 use crate::actors::{DbRelay, Relay};
 use crate::apps::App;
 use crate::db::{
@@ -84,7 +84,15 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     match get_app_by_url(&data, &url).await {
         Ok(Some(app)) => {
             if app.name != name || app.description != description || app.active != active {
-                match update_app(&data, url.clone(), name.clone(), description.clone(), active).await {
+                match update_app(
+                    &data,
+                    url.clone(),
+                    name.clone(),
+                    description.clone(),
+                    active,
+                )
+                .await
+                {
                     // TODO: Send update activity to following relays
                     Ok(_) => return HttpResponse::Ok(),
                     Err(e) => println!("Error updating app: {}", e),
@@ -92,8 +100,8 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
             } else {
                 return HttpResponse::NotModified();
             }
-        },
-        Ok(None) => {},
+        }
+        Ok(None) => {}
         Err(e) => println!("Error fetching app from DB: {}", e),
     }
 
@@ -173,6 +181,7 @@ async fn get_activity(info: web::Path<i32>, data: Data<AppState>) -> impl Respon
 pub enum RelayAcceptedActivities {
     Follow(Follow),
     Create(Create),
+    Update(Update),
 }
 
 #[post("/relay/inbox")]
