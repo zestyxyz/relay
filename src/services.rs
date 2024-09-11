@@ -4,7 +4,7 @@ use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::fetch::webfinger::{build_webfinger_response, extract_webfinger_name};
-use activitypub_federation::kinds::activity::CreateType;
+use activitypub_federation::kinds::activity::{CreateType, UpdateType};
 use activitypub_federation::kinds::actor::ServiceType;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor};
@@ -18,9 +18,9 @@ use crate::activities::{Create, Follow, Update};
 use crate::actors::{DbRelay, Relay};
 use crate::apps::App;
 use crate::db::{
-    create_app, get_activities_count, get_activity_by_id, get_all_apps, get_all_relays,
-    get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id, get_relay_followers,
-    get_system_user, update_app,
+    create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
+    get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
+    get_relay_followers, get_system_user, update_app,
 };
 use crate::AppState;
 
@@ -80,7 +80,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     };
 
     // Check if app already exists, if so return 304
-    let ap_id = format!("{}/beacon/{}", domain, apps_count);
+    // TODO: Improve readability of this block
     match get_app_by_url(&data, &url).await {
         Ok(Some(app)) => {
             if app.name != name || app.description != description || app.active != active {
@@ -93,19 +93,65 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                 )
                 .await
                 {
-                    // TODO: Send update activity to following relays
-                    Ok(_) => return HttpResponse::Ok(),
+                    Ok(_) => {
+                        let activity = Update {
+                            actor: system_user.ap_id.clone(),
+                            object: app.ap_id.clone(),
+                            kind: UpdateType::Update,
+                            id: Url::from_str(&format!(
+                                "{}/activities/{}",
+                                domain, activities_count + 1
+                            ))
+                            .unwrap(),
+                        };
+                        match create_activity(
+                            &data,
+                            format!(
+                                "{}/activities/{}",
+                                system_user.ap_id.inner().as_str(),
+                                activities_count + 1
+                            ),
+                            system_user.ap_id.inner().as_str(),
+                            app.ap_id.inner().as_str(),
+                            "Update",
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                let recipients: Vec<DbRelay> =
+                                    match get_relay_followers(&data).await {
+                                        Ok(relays) => relays,
+                                        Err(e) => panic!("Error fetching relays: {}", e),
+                                    };
+                                let recipient_inboxes: Vec<Url> =
+                                    recipients.iter().map(|relay| relay.inbox.clone()).collect();
+                                let _ = system_user
+                                    .send(activity, recipient_inboxes, false, &data)
+                                    .await
+                                    .map_err(|e| println!("Error sending activity: {}", e));
+                            }
+                            Err(e) => {
+                                println!("ERROR CREATING ACTIVITY: {}", e.to_string());
+                                return HttpResponse::InternalServerError().body(e.to_string())
+                            }
+                        }
+
+                        return HttpResponse::Ok().finish();
+                    }
                     Err(e) => println!("Error updating app: {}", e),
                 }
             } else {
-                return HttpResponse::NotModified();
+                return HttpResponse::NotModified().finish();
             }
         }
-        Ok(None) => {}
+        Ok(None) => {
+            println!("We didn't find the app, we should be creating it");
+        }
         Err(e) => println!("Error fetching app from DB: {}", e),
     }
 
     // Create new app and send create activity to following relays
+    let ap_id = format!("{}/beacon/{}", domain, apps_count);
     match create_app(&data, ap_id, url, name, description, active).await {
         Ok(_) => (),
         Err(e) => println!("Error inserting new beacon: {}", e),
@@ -126,7 +172,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         .await
         .map_err(|e| println!("Error sending activity: {}", e));
 
-    HttpResponse::Ok()
+    HttpResponse::Ok().finish()
 }
 
 #[get("/apps")]
@@ -171,7 +217,10 @@ async fn get_activity(info: web::Path<i32>, data: Data<AppState>) -> impl Respon
         Ok(activity) => HttpResponse::Ok()
             .content_type(FEDERATION_CONTENT_TYPE)
             .json(activity),
-        Err(_) => HttpResponse::NotFound().body("No activity found"),
+        Err(e) => {
+            println!("Error fetching activity: {}", e);
+            HttpResponse::NotFound().body("No activity found")
+        }
     }
 }
 
