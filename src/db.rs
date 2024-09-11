@@ -1,6 +1,7 @@
 use activitypub_federation::config::Data;
 use sqlx::Row;
 
+use crate::activities::DbActivity;
 use crate::actors::DbRelay;
 use crate::apps::DbApp;
 use crate::error::Error;
@@ -95,9 +96,9 @@ pub async fn update_app(
     Ok(())
 }
 
-pub async fn get_activity_by_id(id: i32, data: &Data<AppState>) -> Result<DbApp, Error> {
+pub async fn get_activity_by_id(id: i32, data: &Data<AppState>) -> Result<DbActivity, Error> {
     let db = &data.db;
-    let activity = sqlx::query_as::<_, DbApp>("SELECT * FROM activities WHERE id = $1")
+    let activity = sqlx::query_as::<_, DbActivity>("SELECT * FROM activities WHERE id = $1")
         .bind(id)
         .fetch_one(db)
         .await?;

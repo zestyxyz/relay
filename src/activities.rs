@@ -179,7 +179,6 @@ pub struct DbActivity {
     pub ap_id: ObjectId<DbRelay>,
     pub actor: ObjectId<DbRelay>,
     pub object: ObjectId<DbApp>,
-    pub id: Url,
     pub kind: String,
 }
 
@@ -190,11 +189,10 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbActivity {
         let object = row.try_get_raw("obj");
         let object = object.unwrap().as_str().unwrap();
         Ok(Self {
+            ap_id: ObjectId::parse(row.try_get("activitypub_id")?).unwrap(),
             actor: ObjectId::parse(actor).unwrap(),
             object: ObjectId::parse(object).unwrap(),
             kind: row.try_get("kind")?,
-            id: Url::parse(row.try_get("id")?).unwrap(),
-            ap_id: ObjectId::parse(row.try_get("activitypub_id")?).unwrap(),
         })
     }
 }
