@@ -160,8 +160,8 @@ impl ActivityHandler for Update {
     }
 
     async fn receive(self, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
-        let app = self.object.dereference(data).await?;
-        update_app(data, app.name, app.description, app.url, app.active).await?;
+        let app = self.object.dereference_forced(data).await?;
+        update_app(data, app.url, app.name, app.description, app.active).await?;
         create_activity(
             data,
             self.id.to_string(),
