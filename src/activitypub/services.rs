@@ -33,10 +33,16 @@ pub struct BeaconPayload {
 }
 
 #[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body(
-        "This is a test deployment of a spatial internet graph relay (name subject to change).",
-    )
+async fn hello(data: Data<AppState>) -> impl Responder {
+    let mut ctx = tera::Context::new();
+    ctx.insert("message", "Success!");
+    match data.tera.render("index.html", &ctx) {
+        Ok(html) => web::Html::new(html),
+        Err(e) => {
+            println!("{}", e);
+            web::Html::new("Failed to render to template!")
+        }
+    }
 }
 
 #[get("/relay/beacon/{id}")]
