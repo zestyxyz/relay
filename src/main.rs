@@ -1,9 +1,4 @@
-mod activities;
-mod actors;
-mod apps;
-mod db;
-mod error;
-mod services;
+mod activitypub;
 
 use std::env;
 use std::str::FromStr;
@@ -13,13 +8,12 @@ use activitypub_federation::http_signatures::generate_actor_keypair;
 use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use dotenvy::dotenv;
-use services::hello;
 use sqlx::types::chrono::Utc;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
-use crate::services::{
+use crate::activitypub::services::{
     get_activity, get_apps, get_beacon, get_relays, http_get_system_user, http_post_relay_inbox,
-    new_beacon, not_found, test_follow, webfinger,
+    new_beacon, not_found, test_follow, webfinger, hello
 };
 
 #[derive(Clone)]
@@ -69,7 +63,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let config = FederationConfig::builder()
         .domain(domain.clone())
         .app_data(AppState { db: pool.clone() })
-        .debug(false)
+        .debug(true)
         .build()
         .await?;
     println!("Server listening on: {}", full_domain);

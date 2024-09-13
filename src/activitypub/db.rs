@@ -1,10 +1,10 @@
 use activitypub_federation::config::Data;
 use sqlx::Row;
 
-use crate::activities::DbActivity;
-use crate::actors::DbRelay;
-use crate::apps::DbApp;
-use crate::error::Error;
+use super::activities::DbActivity;
+use super::actors::DbRelay;
+use super::apps::DbApp;
+use super::error::Error;
 use crate::AppState;
 
 pub async fn get_system_user(data: &Data<AppState>) -> Result<DbRelay, Error> {

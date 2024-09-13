@@ -8,14 +8,14 @@ use serde::{self, Deserialize, Serialize};
 use sqlx::{self, postgres::PgRow, FromRow, Row};
 use url::Url;
 
-use crate::apps::DbApp;
-use crate::db::{
+use super::apps::DbApp;
+use super::db::{
     add_follower_to_relay, create_activity, create_app, create_relay,
     get_relay_follower_id_by_ap_id,
 };
-use crate::error::Error;
+use super::error::Error;
+use super::{actors::DbRelay, db::update_app};
 use crate::AppState;
-use crate::{actors::DbRelay, db::update_app};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

@@ -14,10 +14,10 @@ use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::activities::{Create, Follow, Update};
-use crate::actors::{DbRelay, Relay};
-use crate::apps::App;
-use crate::db::{
+use super::activities::{Create, Follow, Update};
+use super::actors::{DbRelay, Relay};
+use super::apps::App;
+use super::db::{
     create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
     get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
     get_relay_followers, get_system_user, update_app,

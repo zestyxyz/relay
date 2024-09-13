@@ -18,9 +18,9 @@ use sqlx::postgres::PgRow;
 use sqlx::{self, FromRow, Row};
 use url::Url;
 
-use crate::activities::Follow;
-use crate::db::{create_activity, get_activities_count, get_relay_by_ap_id};
-use crate::error::Error;
+use super::activities::Follow;
+use super::db::{create_activity, get_activities_count, get_relay_by_ap_id};
+use super::error::Error;
 use crate::AppState;
 
 #[derive(Deserialize, Serialize)]

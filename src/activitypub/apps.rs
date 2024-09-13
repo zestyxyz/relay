@@ -8,8 +8,8 @@ use sqlx::postgres::PgRow;
 use sqlx::{self, FromRow, Row};
 use url::Url;
 
-use crate::db::get_app_by_ap_id;
-use crate::error::Error;
+use super::db::get_app_by_ap_id;
+use super::error::Error;
 use crate::AppState;
 
 /// The internal representation of App data
