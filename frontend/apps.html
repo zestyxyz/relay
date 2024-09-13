@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Error</title>
+  <title>Apps List</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <p>Oh no! An error has occurred. You may have tried to access a page that doesn't exist.</p>
+{% for app in apps %}
+  <li><a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a></li>
+{% endfor %}
 </body>
 </html>

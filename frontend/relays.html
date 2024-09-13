@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Error</title>
+  <title>Relays List</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <p>Oh no! An error has occurred. You may have tried to access a page that doesn't exist.</p>
+  <h1>List of Known Relays</h1>
+{% for relay in relays %}
+  <li><a href="{{ relay.ap_id }}">{{ relay.ap_id }}</a></li>
+{% endfor %}
 </body>
 </html>

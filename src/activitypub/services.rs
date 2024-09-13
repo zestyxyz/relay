@@ -214,16 +214,54 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
 #[get("/apps")]
 async fn get_apps(data: Data<AppState>) -> impl Responder {
     match get_all_apps(&data).await {
-        Ok(apps) => HttpResponse::Ok().json(apps),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        Ok(apps) => {
+            let mut ctx = tera::Context::new();
+            ctx.insert("apps", &apps);
+            match data.tera.render("apps.html", &ctx) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => {
+                    println!("{}", e);
+                    web::Html::new("Failed to render to template!")
+                }
+            }
+        },
+        Err(e) => {
+            println!("Error fetching apps from DB: {}", e);
+            match data.tera.render("error.html", &Context::new()) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => {
+                    println!("{}", e);
+                    web::Html::new("Failed to render to template!")
+                }
+            }
+        },
     }
 }
 
 #[get("/relays")]
 async fn get_relays(data: Data<AppState>) -> impl Responder {
     match get_all_relays(&data).await {
-        Ok(relays) => HttpResponse::Ok().json(relays),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        Ok(relays) => {
+            let mut ctx = tera::Context::new();
+            ctx.insert("relays", &relays);
+            match data.tera.render("relays.html", &ctx) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => {
+                    println!("{}", e);
+                    web::Html::new("Failed to render to template!")
+                }
+            }
+        },
+        Err(e) => {
+            println!("Error fetching apps from DB: {}", e);
+            match data.tera.render("error.html", &Context::new()) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => {
+                    println!("{}", e);
+                    web::Html::new("Failed to render to template!")
+                }
+            }
+        },
     }
 }
 
