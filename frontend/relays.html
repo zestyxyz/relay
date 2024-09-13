@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Relays List</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <h1>List of Known Relays</h1>
 {% for relay in relays %}
-  <li><a href="{{ relay.ap_id }}">{{ relay.ap_id }}</a></li>
+  <li><a href="{{ relay.ap_id | safe }}">{{ relay.ap_id }}</a></li>
 {% endfor %}
 </body>
 </html>
