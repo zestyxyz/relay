@@ -12,6 +12,7 @@ use activitypub_federation::FEDERATION_CONTENT_TYPE;
 use actix_web::web::{self, Bytes};
 use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
+use tera::Context;
 use url::Url;
 
 use super::activities::{Create, Follow, Update};
@@ -179,6 +180,35 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         .map_err(|e| println!("Error sending activity: {}", e));
 
     HttpResponse::Ok().finish()
+}
+
+#[get("/app/{id}")]
+async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
+    match get_app_by_id(path.into_inner() + 1, &data).await {
+        Ok(app) => {
+            let mut ctx = tera::Context::new();
+            ctx.insert("name", &app.name);
+            ctx.insert("description", &app.description);
+            ctx.insert("url", &app.url);
+            match data.tera.render("app.html", &ctx) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => {
+                    println!("{}", e);
+                    web::Html::new("Failed to render to template!")
+                }
+            }
+        },
+        Err(e) => {
+            println!("Error fetching app from DB: {}", e);
+            match data.tera.render("error.html", &Context::new()) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => {
+                    println!("{}", e);
+                    web::Html::new("Failed to render to template!")
+                }
+            }
+        },
+    }
 }
 
 #[get("/apps")]

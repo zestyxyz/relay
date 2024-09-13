@@ -3,6 +3,7 @@ mod activitypub;
 use std::env;
 use std::str::FromStr;
 
+use activitypub::services::get_app;
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use activitypub_federation::http_signatures::generate_actor_keypair;
 use actix_cors::Cors;
@@ -81,6 +82,7 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(new_beacon)
             .service(get_beacon)
             .service(get_activity)
+            .service(get_app)
             .service(get_apps)
             .service(get_relays)
             .service(test_follow)
