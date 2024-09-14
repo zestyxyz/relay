@@ -35,8 +35,9 @@ pub struct BeaconPayload {
 
 #[get("/")]
 async fn hello(data: Data<AppState>) -> impl Responder {
+    let count = get_apps_count(&data).await.unwrap();
     let mut ctx = tera::Context::new();
-    ctx.insert("message", "Success!");
+    ctx.insert("apps_count", &count);
     match data.tera.render("index.html", &ctx) {
         Ok(html) => web::Html::new(html),
         Err(e) => {

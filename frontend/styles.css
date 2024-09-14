@@ -3,3 +3,12 @@ body {
   text-align: center;
   width: 100%;
 }
+
+nav {
+  display: inline-block;
+  width: 100%;
+}
+
+.list-container {
+  text-align: left;
+}

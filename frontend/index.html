@@ -5,10 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
 </head>
 <body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/apps">List of Apps</a>
+      <a href="/relays">List of Relays</a>
+    </nav>
+  </header>
   <h1>Spatial Internet Graph Relay</h1>
-  <a href="/apps">List of Apps</a>
-  <p>Testing HTML templating: {{ message }}</p>
+  <p>This is a test deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
+  <p>This relay currently knows of {{ apps_count }} app(s).</p>
 </body>
 </html>

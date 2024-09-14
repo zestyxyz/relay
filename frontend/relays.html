@@ -5,11 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Relays List</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
 </head>
 <body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/apps">List of Apps</a>
+      <a href="/relays">List of Relays</a>
+    </nav>
+  </header>
   <h1>List of Known Relays</h1>
-{% for relay in relays %}
-  <li><a href="{{ relay.ap_id | safe }}">{{ relay.ap_id }}</a></li>
-{% endfor %}
+  <div class="list-container">
+  {% for relay in relays %}
+    <li><a href="{{ relay.ap_id | safe }}">{{ relay.ap_id }}</a></li>
+  {% endfor %}
+  </div>
 </body>
 </html>

@@ -5,10 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Apps List</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
 </head>
 <body>
-{% for app in apps %}
-  <li><a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a></li>
-{% endfor %}
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/apps">List of Apps</a>
+      <a href="/relays">List of Relays</a>
+    </nav>
+  </header>
+  <h1>Apps List</h1>
+  <div class="list-container">
+  {% for app in apps %}
+    <li><a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a></li>
+  {% endfor %}
+  </div>
 </body>
 </html>
