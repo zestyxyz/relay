@@ -14,8 +14,8 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use tera::Tera;
 
 use crate::activitypub::services::{
-    get_activity, get_apps, get_beacon, get_relays, http_get_system_user, http_post_relay_inbox,
-    new_beacon, not_found, test_follow, webfinger, hello
+    get_activity, get_apps, get_beacon, get_relays, hello, http_get_system_user,
+    http_post_relay_inbox, new_beacon, not_found, test_follow, webfinger,
 };
 
 #[derive(Clone)]
@@ -66,7 +66,10 @@ async fn main() -> Result<(), anyhow::Error> {
     let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/frontend/**/*.html")).unwrap();
     let config = FederationConfig::builder()
         .domain(domain.clone())
-        .app_data(AppState { db: pool.clone(), tera })
+        .app_data(AppState {
+            db: pool.clone(),
+            tera,
+        })
         .debug(true)
         .build()
         .await?;
@@ -87,8 +90,8 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(get_relays)
             .service(test_follow)
             .service(webfinger)
-            .service(actix_files::Files::new("/", "frontend"))
-            .default_service(web::to(not_found))
+            .service(actix_files::Files::new("/static", "frontend"))
+            .default_service(web::route().to(not_found))
     })
     .bind(("0.0.0.0", u16::from_str(&port).unwrap()))?
     .run()

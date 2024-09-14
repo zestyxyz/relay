@@ -108,7 +108,8 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                             kind: UpdateType::Update,
                             id: Url::from_str(&format!(
                                 "{}/activities/{}",
-                                domain, activities_count + 1
+                                domain,
+                                activities_count + 1
                             ))
                             .unwrap(),
                         };
@@ -140,7 +141,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                             }
                             Err(e) => {
                                 println!("ERROR CREATING ACTIVITY: {}", e.to_string());
-                                return HttpResponse::InternalServerError().body(e.to_string())
+                                return HttpResponse::InternalServerError().body(e.to_string());
                             }
                         }
 
@@ -198,7 +199,7 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
                     web::Html::new("Failed to render to template!")
                 }
             }
-        },
+        }
         Err(e) => {
             println!("Error fetching app from DB: {}", e);
             match data.tera.render("error.html", &Context::new()) {
@@ -208,7 +209,7 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
                     web::Html::new("Failed to render to template!")
                 }
             }
-        },
+        }
     }
 }
 
@@ -225,7 +226,7 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
                     web::Html::new("Failed to render to template!")
                 }
             }
-        },
+        }
         Err(e) => {
             println!("Error fetching apps from DB: {}", e);
             match data.tera.render("error.html", &Context::new()) {
@@ -235,7 +236,7 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
                     web::Html::new("Failed to render to template!")
                 }
             }
-        },
+        }
     }
 }
 
@@ -252,7 +253,7 @@ async fn get_relays(data: Data<AppState>) -> impl Responder {
                     web::Html::new("Failed to render to template!")
                 }
             }
-        },
+        }
         Err(e) => {
             println!("Error fetching apps from DB: {}", e);
             match data.tera.render("error.html", &Context::new()) {
@@ -262,7 +263,7 @@ async fn get_relays(data: Data<AppState>) -> impl Responder {
                     web::Html::new("Failed to render to template!")
                 }
             }
-        },
+        }
     }
 }
 
@@ -324,9 +325,15 @@ async fn http_post_relay_inbox(
     }
 }
 
-pub async fn not_found(request: HttpRequest) -> impl Responder {
+pub async fn not_found(request: HttpRequest, data: Data<AppState>) -> impl Responder {
     println!("Got request for unknown route: {}", request.uri().path());
-    HttpResponse::NotFound()
+    match data.tera.render("error.html", &Context::new()) {
+        Ok(html) => web::Html::new(html),
+        Err(e) => {
+            println!("{}", e);
+            web::Html::new("Failed to render to template!")
+        }
+    }
 }
 
 #[derive(Deserialize)]
