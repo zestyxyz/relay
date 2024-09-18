@@ -3,7 +3,6 @@ mod activitypub;
 use std::env;
 use std::str::FromStr;
 
-use activitypub::services::get_app;
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use activitypub_federation::http_signatures::generate_actor_keypair;
 use actix_cors::Cors;
@@ -14,8 +13,9 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use tera::Tera;
 
 use crate::activitypub::services::{
-    get_activity, get_apps, get_beacon, get_relays, hello, http_get_system_user,
-    http_post_relay_inbox, new_beacon, not_found, test_follow, webfinger,
+    admin_page, get_activity, get_app, get_apps, get_beacon, get_relays, hello,
+    http_get_system_user, http_post_relay_inbox, login, new_beacon, not_found, request_login_token,
+    test_follow, webfinger,
 };
 
 #[derive(Clone)]
@@ -89,6 +89,9 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(get_apps)
             .service(get_relays)
             .service(test_follow)
+            .service(login)
+            .service(request_login_token)
+            .service(admin_page)
             .service(webfinger)
             .service(actix_files::Files::new("/static", "frontend"))
             .default_service(web::route().to(not_found))

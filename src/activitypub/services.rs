@@ -9,8 +9,10 @@ use activitypub_federation::kinds::actor::ServiceType;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor};
 use activitypub_federation::FEDERATION_CONTENT_TYPE;
+use actix_web::cookie::{time, Cookie};
 use actix_web::web::{self, Bytes};
 use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
+use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
 use tera::Context;
 use url::Url;
@@ -31,6 +33,16 @@ pub struct BeaconPayload {
     pub name: String,
     pub description: String,
     pub active: bool,
+}
+
+#[derive(Serialize)]
+pub struct JWT {
+    pub token: String,
+}
+
+#[derive(Deserialize)]
+pub struct LoginPayload {
+    password: String,
 }
 
 #[get("/")]
@@ -326,8 +338,74 @@ async fn http_post_relay_inbox(
 }
 
 pub async fn not_found(request: HttpRequest, data: Data<AppState>) -> impl Responder {
-    println!("Got request for unknown route: {}", request.uri().path());
+    println!(
+        "Got request for unknown route: {} {}",
+        request.uri().path(),
+        request.method().as_str()
+    );
     match data.tera.render("error.html", &Context::new()) {
+        Ok(html) => web::Html::new(html),
+        Err(e) => {
+            println!("{}", e);
+            web::Html::new("Failed to render to template!")
+        }
+    }
+}
+
+#[get("/login")]
+async fn login(_request: HttpRequest, data: Data<AppState>) -> impl Responder {
+    match data.tera.render("login.html", &Context::new()) {
+        Ok(html) => web::Html::new(html),
+        Err(e) => {
+            println!("{}", e);
+            web::Html::new("Failed to render to template!")
+        }
+    }
+}
+
+#[post("/login")]
+async fn request_login_token(
+    data: Data<AppState>,
+    req_body: web::Form<LoginPayload>,
+) -> impl Responder {
+    let user = get_relay_by_id(0, &data)
+        .await
+        .expect("Failed to get system user!");
+    let password = std::env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set");
+    if password != req_body.password {
+        return HttpResponse::Unauthorized().body("Invalid password");
+    }
+
+    let duration = Duration::from_days(1);
+    let claim = Claims::create(duration);
+    let keypair = RS256KeyPair::from_pem(&user.private_key_pem().unwrap()).unwrap();
+    let token = keypair.sign(claim).unwrap();
+
+    HttpResponse::Found() // HTTP 302 redirect to /admin
+        .append_header(("Location", "/admin"))
+        .cookie(
+            Cookie::build("relay-admin-token", token)
+                .path("/")
+                .http_only(true)
+                .max_age(time::Duration::days(1))
+                .finish(),
+        )
+        .finish()
+}
+
+#[get("/admin")]
+async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responder {
+    let cookie = request.cookie("relay-admin-token");
+    if cookie.is_none() {
+        return match data.tera.render("error.html", &Context::new()) {
+            Ok(html) => web::Html::new(html),
+            Err(e) => {
+                println!("{}", e);
+                web::Html::new("Failed to render to template!")
+            }
+        };
+    }
+    match data.tera.render("admin.html", &Context::new()) {
         Ok(html) => web::Html::new(html),
         Err(e) => {
             println!("{}", e);
