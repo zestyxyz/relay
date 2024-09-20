@@ -13,9 +13,9 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use tera::Tera;
 
 use crate::activitypub::services::{
-    admin_page, get_activity, get_app, get_apps, get_beacon, get_relays, hello,
-    http_get_system_user, http_post_relay_inbox, login, new_beacon, not_found, request_login_token,
-    test_follow, webfinger,
+    admin_follow, admin_page, get_activity, get_app, get_apps, get_beacon, get_relays,
+    http_get_system_user, http_post_relay_inbox, index, login, new_beacon, not_found,
+    request_login_token, webfinger,
 };
 
 #[derive(Clone)]
@@ -79,7 +79,7 @@ async fn main() -> Result<(), anyhow::Error> {
         App::new()
             .wrap(FederationMiddleware::new(config.clone()))
             .wrap(cors)
-            .service(hello)
+            .service(index)
             .service(http_get_system_user)
             .service(http_post_relay_inbox)
             .service(new_beacon)
@@ -88,10 +88,10 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(get_app)
             .service(get_apps)
             .service(get_relays)
-            .service(test_follow)
             .service(login)
             .service(request_login_token)
             .service(admin_page)
+            .service(admin_follow)
             .service(webfinger)
             .service(actix_files::Files::new("/static", "frontend"))
             .default_service(web::route().to(not_found))

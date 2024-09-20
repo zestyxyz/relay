@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login</title>
+  <title>Admin</title>
   <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css" >
   <link rel="stylesheet" href="/static/styles.css">
 </head>
@@ -16,5 +16,12 @@
     </nav>
   </header>
   <h1>Admin</h1>
+  <h2>Follow Relay</h2>
+  <form action="/admin/follow" method="post">
+    <label for="Follow">Relay URL</label>
+    <input type="text" name="follow_url" id="follow_url">
+    <input type="submit" value="Follow">
+  </form>
+  <p>{{ message }}</p>
 </body>
 </html>

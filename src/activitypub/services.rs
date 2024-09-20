@@ -45,8 +45,13 @@ pub struct LoginPayload {
     password: String,
 }
 
+#[derive(Deserialize)]
+pub struct FollowPayload {
+    follow_url: String,
+}
+
 #[get("/")]
-async fn hello(data: Data<AppState>) -> impl Responder {
+async fn index(data: Data<AppState>) -> impl Responder {
     let count = get_apps_count(&data).await.unwrap();
     let mut ctx = tera::Context::new();
     ctx.insert("apps_count", &count);
@@ -405,7 +410,9 @@ async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responde
             }
         };
     }
-    match data.tera.render("admin.html", &Context::new()) {
+    let mut ctx = tera::Context::new();
+    ctx.insert("message", "");
+    match data.tera.render("admin.html", &ctx) {
         Ok(html) => web::Html::new(html),
         Err(e) => {
             println!("{}", e);
@@ -438,16 +445,23 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
     ))
 }
 
-#[post("/test_follow")]
-async fn test_follow(_request: HttpRequest, body: Bytes, data: Data<AppState>) -> HttpResponse {
+#[post("/admin/follow")]
+async fn admin_follow(request: HttpRequest, req_body: web::Form<FollowPayload>, data: Data<AppState>) -> HttpResponse {
+    let cookie = request.cookie("relay-admin-token");
+    if cookie.is_none() {
+        return HttpResponse::InternalServerError().body("Authorization error occurred.");
+    }
     let db_user = get_system_user(&data).await.unwrap();
-    let follow_url = String::from_utf8(body.to_ascii_lowercase()).ok();
-    if let Some(url) = follow_url {
-        match db_user.follow(&url, &data).await {
-            Ok(_) => HttpResponse::Ok().body("Followed"),
-            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-        }
-    } else {
-        HttpResponse::BadRequest().body("Bad request")
+    let mut ctx = tera::Context::new();
+    ctx.insert("message", "Successfully followed!");
+    match db_user.follow(&req_body.follow_url, &data).await {
+        Ok(_) => match data.tera.render("admin.html", &ctx) {
+            Ok(html) => HttpResponse::Ok().body(html),
+            Err(e) => {
+                println!("{}", e);
+                HttpResponse::InternalServerError().body(e.to_string())
+            }
+        },
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
