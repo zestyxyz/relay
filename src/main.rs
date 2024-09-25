@@ -22,12 +22,14 @@ use crate::activitypub::services::{
 pub struct AppState {
     db: Pool<Postgres>,
     tera: Tera,
+    debug: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     dotenv().expect("Failed to locate .env file!");
 
+    let debug = env::var("DEBUG").unwrap_or("false".to_string()) == "true";
     let domain = env::var("DOMAIN").expect("DOMAIN must be set");
     let port = env::var("PORT").expect("PORT must be set");
     let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
@@ -69,8 +71,9 @@ async fn main() -> Result<(), anyhow::Error> {
         .app_data(AppState {
             db: pool.clone(),
             tera,
+            debug
         })
-        .debug(true)
+        .debug(debug)
         .build()
         .await?;
     println!("Server listening on: {}", full_domain);
