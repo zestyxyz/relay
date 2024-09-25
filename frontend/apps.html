@@ -18,7 +18,11 @@
   <h1>Apps List</h1>
   <div class="list-container">
   {% for app in apps %}
-    <li><a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a></li>
+    <div class="card">
+      <a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a>
+      <p>{{ app.description }}</p>
+      <a href="{{ app.url | safe }}">{{ app.url }}</a>
+    </div>
   {% endfor %}
   </div>
 </body>
