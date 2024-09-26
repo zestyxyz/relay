@@ -4,6 +4,16 @@ This is the current prototype for the SIG relay server, written in Rust.
 
 ## Setup
 
+The relay prototype can be launched either with Docker or on your local system.
+
+### Docker
+
+- [Install Docker for your system](https://docs.docker.com/engine/install/)
+- Copy `.env.sample` to `.env` and fill in the fields as appropriate
+- Run `docker compose up -d` to spin up the necessary containers.
+
+### Non-Docker
+
 - [Install Rust](https://www.rust-lang.org/tools/install)
 - Install necessary dependencies
   - On Ubuntu: `sudo apt install build-essential pkg-config libssl-dev postgresql`
