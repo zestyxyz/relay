@@ -29,6 +29,12 @@ The relay prototype can be launched either with Docker or on your local system.
 
 If you need to reset the state of the database:
 
+### Docker
+
+Delete the Postgres data volume for the containers, it will be reinitialized on startup.
+
+### Non-Docker
+
 ```sh
 sqlx database drop
 sqlx database create
