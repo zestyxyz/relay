@@ -15,17 +15,37 @@
       <a href="/relays">List of Relays</a>
     </nav>
   </header>
-  <h1>Apps List</h1>
-  <div class="list-container">
-  {% for app in apps %}
-    {% if DEBUG or 'localhost' not in app.url %}
-      <div class="card">
-        <a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a>
-        <p>{{ app.description }}</p>
-        <a href="{{ app.url | safe }}">{{ app.url }}</a>
-      </div>
+  <div>
+    <p>Show results from the following domains:</p>
+  {% for occurance in high_occurances %}
+    {% if DEBUG or 'localhost' not in occurance %}
+    <input data-url="{{ occurance }}" type="checkbox" checked onchange="filterApps(this)">{{ occurance }}</option>
     {% endif %}
   {% endfor %}
   </div>
+  <hr>
+  <div class="list-container">
+  {% for app in apps %}
+    {% if DEBUG or 'localhost' not in app.url %}
+    <div class="card" data-url="{{ app.url }}">
+      <a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a>
+      <p>{{ app.description }}</p>
+      <a href="{{ app.url | safe }}">{{ app.url }}</a>
+    </div>
+    {% endif %}
+  {% endfor %}
+  </div>
+  <script>
+    const appsList = document.querySelector('.list-container');
+    function filterApps(checkbox) {
+      const checked = checkbox.checked;
+      const url = checkbox.getAttribute('data-url');
+      for (const app of appsList.children) {
+        if (app.getAttribute('data-url').includes(url)) {
+          app.style.display = checked ? 'block' : 'none';
+        }
+      }
+    }
+  </script>
 </body>
 </html>

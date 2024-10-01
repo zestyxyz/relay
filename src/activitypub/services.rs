@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use activitypub_federation::actix_web::inbox::receive_activity;
@@ -234,9 +235,29 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
 async fn get_apps(data: Data<AppState>) -> impl Responder {
     match get_all_apps(&data).await {
         Ok(apps) => {
+            // TODO: See if calculating this can be lifted off a hot path
+            let mut host_occurances: HashMap<String, usize> = HashMap::new();
+            apps.iter().for_each(|app| {
+                let url = Url::parse(&app.url).unwrap();
+                let host = url.host_str();
+                if let Some(hostname) = host {
+                    let _ = host_occurances.entry(hostname.to_string()).and_modify(|count| *count += 1).or_insert(0);
+                }
+            });
+            let high_occurances: Vec<String> = host_occurances
+                .into_iter()
+                .filter_map(|(host, count)| {
+                    if count > 3 {
+                        Some(host)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
             let mut ctx = tera::Context::new();
             ctx.insert("apps", &apps);
             ctx.insert("DEBUG", &data.debug);
+            ctx.insert("high_occurances", &high_occurances);
             match data.tera.render("apps.html", &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => {
@@ -447,7 +468,11 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
 }
 
 #[post("/admin/follow")]
-async fn admin_follow(request: HttpRequest, req_body: web::Form<FollowPayload>, data: Data<AppState>) -> HttpResponse {
+async fn admin_follow(
+    request: HttpRequest,
+    req_body: web::Form<FollowPayload>,
+    data: Data<AppState>,
+) -> HttpResponse {
     let cookie = request.cookie("relay-admin-token");
     if cookie.is_none() {
         return HttpResponse::InternalServerError().body("Authorization error occurred.");

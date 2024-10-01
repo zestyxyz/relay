@@ -71,7 +71,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .app_data(AppState {
             db: pool.clone(),
             tera,
-            debug
+            debug,
         })
         .debug(debug)
         .build()
