@@ -40,9 +40,10 @@
     const appsList = document.querySelector('.list-container');
     function filterApps(checkbox) {
       const checked = checkbox.checked;
-      const url = checkbox.getAttribute('data-url');
+      const hostURL = checkbox.getAttribute('data-url');
       for (const app of appsList.children) {
-        if (app.getAttribute('data-url').includes(url)) {
+        const url = app.getAttribute('data-url');
+        if (url.includes(hostURL) && !url.includes(`.${hostURL}`)) {
           app.style.display = checked ? 'block' : 'none';
         }
       }
