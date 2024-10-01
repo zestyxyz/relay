@@ -51,6 +51,16 @@ pub struct FollowPayload {
     follow_url: String,
 }
 
+fn template_fail_screen(e: tera::Error) -> web::Html {
+    println!("{}", e);
+    web::Html::new("Failed to render to template!")
+}
+
+fn server_fail_screen(e: super::error::Error) -> web::Html {
+    println!("{}", e);
+    web::Html::new("Server has encountered an internal error. Please check again later.")
+}
+
 #[get("/")]
 async fn index(data: Data<AppState>) -> impl Responder {
     let count = get_apps_count(&data).await.unwrap();
@@ -62,16 +72,10 @@ async fn index(data: Data<AppState>) -> impl Responder {
             ctx.insert("apps", &apps);
             match data.tera.render("index.html", &ctx) {
                 Ok(html) => web::Html::new(html),
-                Err(e) => {
-                    println!("{}", e);
-                    web::Html::new("Failed to render to template!")
-                }
+                Err(e) => template_fail_screen(e),
             }
         }
-        Err(e) => {
-            println!("{}", e);
-            web::Html::new("Failed to render to template!")
-        }
+        Err(e) => server_fail_screen(e),
     }
 }
 
@@ -222,20 +226,14 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
             ctx.insert("url", &app.url);
             match data.tera.render("app.html", &ctx) {
                 Ok(html) => web::Html::new(html),
-                Err(e) => {
-                    println!("{}", e);
-                    web::Html::new("Failed to render to template!")
-                }
+                Err(e) => template_fail_screen(e),
             }
         }
         Err(e) => {
             println!("Error fetching app from DB: {}", e);
             match data.tera.render("error.html", &Context::new()) {
                 Ok(html) => web::Html::new(html),
-                Err(e) => {
-                    println!("{}", e);
-                    web::Html::new("Failed to render to template!")
-                }
+                Err(e) => template_fail_screen(e),
             }
         }
     }
@@ -270,20 +268,14 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
             ctx.insert("high_occurances", &high_occurances);
             match data.tera.render("apps.html", &ctx) {
                 Ok(html) => web::Html::new(html),
-                Err(e) => {
-                    println!("{}", e);
-                    web::Html::new("Failed to render to template!")
-                }
+                Err(e) => template_fail_screen(e),
             }
         }
         Err(e) => {
             println!("Error fetching apps from DB: {}", e);
             match data.tera.render("error.html", &Context::new()) {
                 Ok(html) => web::Html::new(html),
-                Err(e) => {
-                    println!("{}", e);
-                    web::Html::new("Failed to render to template!")
-                }
+                Err(e) => template_fail_screen(e),
             }
         }
     }
@@ -297,20 +289,14 @@ async fn get_relays(data: Data<AppState>) -> impl Responder {
             ctx.insert("relays", &relays);
             match data.tera.render("relays.html", &ctx) {
                 Ok(html) => web::Html::new(html),
-                Err(e) => {
-                    println!("{}", e);
-                    web::Html::new("Failed to render to template!")
-                }
+                Err(e) => template_fail_screen(e),
             }
         }
         Err(e) => {
             println!("Error fetching apps from DB: {}", e);
             match data.tera.render("error.html", &Context::new()) {
                 Ok(html) => web::Html::new(html),
-                Err(e) => {
-                    println!("{}", e);
-                    web::Html::new("Failed to render to template!")
-                }
+                Err(e) => template_fail_screen(e),
             }
         }
     }
@@ -382,10 +368,7 @@ pub async fn not_found(request: HttpRequest, data: Data<AppState>) -> impl Respo
     );
     match data.tera.render("error.html", &Context::new()) {
         Ok(html) => web::Html::new(html),
-        Err(e) => {
-            println!("{}", e);
-            web::Html::new("Failed to render to template!")
-        }
+        Err(e) => template_fail_screen(e),
     }
 }
 
@@ -393,10 +376,7 @@ pub async fn not_found(request: HttpRequest, data: Data<AppState>) -> impl Respo
 async fn login(_request: HttpRequest, data: Data<AppState>) -> impl Responder {
     match data.tera.render("login.html", &Context::new()) {
         Ok(html) => web::Html::new(html),
-        Err(e) => {
-            println!("{}", e);
-            web::Html::new("Failed to render to template!")
-        }
+        Err(e) => template_fail_screen(e),
     }
 }
 
@@ -436,20 +416,14 @@ async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responde
     if cookie.is_none() {
         return match data.tera.render("error.html", &Context::new()) {
             Ok(html) => web::Html::new(html),
-            Err(e) => {
-                println!("{}", e);
-                web::Html::new("Failed to render to template!")
-            }
+            Err(e) => template_fail_screen(e),
         };
     }
     let mut ctx = tera::Context::new();
     ctx.insert("message", "");
     match data.tera.render("admin.html", &ctx) {
         Ok(html) => web::Html::new(html),
-        Err(e) => {
-            println!("{}", e);
-            web::Html::new("Failed to render to template!")
-        }
+        Err(e) => template_fail_screen(e),
     }
 }
 
