@@ -18,11 +18,13 @@
   <h1>Apps List</h1>
   <div class="list-container">
   {% for app in apps %}
-    <div class="card">
-      <a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a>
-      <p>{{ app.description }}</p>
-      <a href="{{ app.url | safe }}">{{ app.url }}</a>
-    </div>
+    {% if DEBUG or 'localhost' not in app.url %}
+      <div class="card">
+        <a href="/app/{{ loop.index - 1 }}">{{ app.name }}</a>
+        <p>{{ app.description }}</p>
+        <a href="{{ app.url | safe }}">{{ app.url }}</a>
+      </div>
+    {% endif %}
   {% endfor %}
   </div>
 </body>

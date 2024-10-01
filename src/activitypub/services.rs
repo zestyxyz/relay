@@ -233,12 +233,10 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
 #[get("/apps")]
 async fn get_apps(data: Data<AppState>) -> impl Responder {
     match get_all_apps(&data).await {
-        Ok(mut apps) => {
-            if !data.debug {
-                apps.retain(|app| !app.url.contains("localhost"));
-            }
+        Ok(apps) => {
             let mut ctx = tera::Context::new();
             ctx.insert("apps", &apps);
+            ctx.insert("DEBUG", &data.debug);
             match data.tera.render("apps.html", &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => {
