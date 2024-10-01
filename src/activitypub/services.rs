@@ -54,10 +54,20 @@ pub struct FollowPayload {
 #[get("/")]
 async fn index(data: Data<AppState>) -> impl Responder {
     let count = get_apps_count(&data).await.unwrap();
-    let mut ctx = tera::Context::new();
-    ctx.insert("apps_count", &count);
-    match data.tera.render("index.html", &ctx) {
-        Ok(html) => web::Html::new(html),
+    match get_all_apps(&data).await {
+        Ok(mut apps) => {
+            apps.truncate(5);
+            let mut ctx = tera::Context::new();
+            ctx.insert("apps_count", &count);
+            ctx.insert("apps", &apps);
+            match data.tera.render("index.html", &ctx) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => {
+                    println!("{}", e);
+                    web::Html::new("Failed to render to template!")
+                }
+            }
+        }
         Err(e) => {
             println!("{}", e);
             web::Html::new("Failed to render to template!")

@@ -15,7 +15,7 @@ nav {
   grid-gap: 20px;
 }
 
-.card {
+.card, .carousel-cell {
   border: 4px solid white;
   border-radius: 16px;
   padding: 1em;

@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spatial Internet Graph Relay</title>
   <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/flickity@2/dist/flickity.min.css">
   <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://unpkg.com/flickity@2/dist/flickity.pkgd.min.js"></script>
 </head>
 <body>
   <header>
@@ -17,6 +19,14 @@
   </header>
   <h1>Spatial Internet Graph Relay</h1>
   <p>This is a test deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
-  <p>This relay currently knows of {{ apps_count }} app(s).</p>
+  <p>This relay currently knows of {{ apps_count }} app(s). Here are a few of them:</p>
+  <div class="main-carousel" data-flickity='{ "wrapAround": true }'>
+    {% for app in apps %}
+    <div class="carousel-cell">
+      <a href="{{ app.url }}">{{ app.name }}</a>
+      <p>{{ app.description }}</p>
+    </div>
+    {% endfor %}
+  </div>
 </body>
 </html>
