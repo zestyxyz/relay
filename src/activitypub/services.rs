@@ -56,7 +56,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
     let count = get_apps_count(&data).await.unwrap();
     match get_all_apps(&data).await {
         Ok(mut apps) => {
-            apps.truncate(5);
+            apps.truncate(20);
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &count);
             ctx.insert("apps", &apps);

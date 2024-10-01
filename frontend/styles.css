@@ -15,8 +15,22 @@ nav {
   grid-gap: 20px;
 }
 
+.main-carousel {
+  width: 100%;
+}
+
 .card, .carousel-cell {
   border: 4px solid white;
   border-radius: 16px;
   padding: 1em;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.carousel-cell {
+  height: 10em;
+}
+
+.carousel-cell p {
+  padding: 0 2em;
 }
