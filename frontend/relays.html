@@ -18,7 +18,7 @@
   <h1>List of Known Relays</h1>
   <div class="list-container">
   {% for relay in relays %}
-    <li><a href="{{ relay.ap_id | safe }}">{{ relay.ap_id }}</a></li>
+    <li><a href="{{ relay.ap_id | safe }}" target="_blank" rel="noopener noreferrer">{{ relay.ap_id }}</a></li>
   {% endfor %}
   </div>
 </body>
