@@ -1,6 +1,6 @@
 use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
-use activitypub_federation::protocol::helpers::deserialize_one_or_many;
+use activitypub_federation::protocol::helpers::{deserialize_one_or_many, deserialize_skip_error};
 use activitypub_federation::protocol::verification::verify_domains_match;
 use activitypub_federation::{kinds::object::PageType, traits::Object};
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ pub struct DbApp {
     pub name: String,
     pub description: String,
     pub active: bool,
+    pub image: String,
 }
 
 impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
@@ -31,6 +32,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
             name: row.try_get("name")?,
             description: row.try_get("description")?,
             active: row.try_get("is_active")?,
+            image: row.try_get("image")?,
         })
     }
 }
@@ -42,6 +44,7 @@ impl DbApp {
         name: String,
         description: String,
         active: bool,
+        image: String,
     ) -> Self {
         Self {
             ap_id,
@@ -49,6 +52,26 @@ impl DbApp {
             name,
             description,
             active,
+            image,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct APImage {
+    #[serde(rename = "type")]
+    kind: String,
+    href: String,
+    media_type: String,
+}
+
+impl APImage {
+    pub fn new(href: String) -> Self {
+        Self {
+            kind: "Image".to_string(),
+            href,
+            media_type: "image/png".to_string(),
         }
     }
 }
@@ -66,6 +89,8 @@ pub struct App {
     content: String,
     name: String,
     summary: String,
+    #[serde(deserialize_with = "deserialize_skip_error", default)]
+    image: Option<APImage>,
 }
 
 impl App {
@@ -76,6 +101,7 @@ impl App {
         content: String,
         name: String,
         summary: String,
+        image: Option<APImage>,
     ) -> Self {
         Self {
             kind: PageType::Page,
@@ -85,6 +111,7 @@ impl App {
             content,
             name,
             summary,
+            image,
         }
     }
 }
@@ -115,7 +142,7 @@ impl Object for DbApp {
             name: self.name,
             summary: self.description,
             content: self.url,
-            // TODO: Add in the other fields
+            image: Some(APImage::new(self.image)),
         })
     }
 
@@ -132,12 +159,14 @@ impl Object for DbApp {
         json: Self::Kind,
         _data: &Data<Self::DataType>,
     ) -> Result<Self, Self::Error> {
+        let image = json.image.and_then(|i| Some(i.href));
         let app = DbApp {
             ap_id: json.id,
             url: json.content,
             name: json.name,
             description: json.summary,
             active: true,
+            image: image.unwrap_or("".to_string()),
         };
         Ok(app)
     }

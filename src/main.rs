@@ -13,7 +13,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use tera::Tera;
 
 use crate::activitypub::services::{
-    admin_follow, admin_page, get_activity, get_app, get_apps, get_beacon, get_relays,
+    admin_follow, admin_page, get_activity, get_app, get_apps, get_beacon, get_image, get_relays,
     http_get_system_user, http_post_relay_inbox, index, login, new_beacon, not_found,
     request_login_token, webfinger,
 };
@@ -96,6 +96,7 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(admin_page)
             .service(admin_follow)
             .service(webfinger)
+            .service(get_image)
             .service(actix_files::Files::new("/static", "frontend"))
             .default_service(web::route().to(not_found))
     })

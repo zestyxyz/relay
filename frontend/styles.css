@@ -4,6 +4,10 @@ body {
   width: 100%;
 }
 
+img {
+  margin: auto;
+}
+
 nav {
   display: inline-block;
   width: 100%;

@@ -11,6 +11,7 @@ actix-web = "4.9.0"
 anyhow = "1.0.86"
 async-trait = "0.1.81"
 chrono = { version = "0.4.38", features = ["serde"] }
+dataurl = "0.1.2"
 dotenvy = "0.15.7"
 enum_delegate = "0.2.0"
 getopts = "0.2.21"

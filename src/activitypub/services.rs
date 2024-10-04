@@ -13,6 +13,7 @@ use activitypub_federation::FEDERATION_CONTENT_TYPE;
 use actix_web::cookie::{time, Cookie};
 use actix_web::web::{self, Bytes};
 use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
+use dataurl::DataUrl;
 use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
 use tera::Context;
@@ -20,7 +21,7 @@ use url::Url;
 
 use super::activities::{Create, Follow, Update};
 use super::actors::{DbRelay, Relay};
-use super::apps::App;
+use super::apps::{APImage, App};
 use super::db::{
     create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
     get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
@@ -34,6 +35,7 @@ pub struct BeaconPayload {
     pub name: String,
     pub description: String,
     pub active: bool,
+    pub image: String,
 }
 
 #[derive(Serialize)]
@@ -82,16 +84,20 @@ async fn index(data: Data<AppState>) -> impl Responder {
 #[get("/relay/beacon/{id}")]
 async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responder {
     match get_app_by_id(info.into_inner() + 1, &data).await {
-        Ok(app) => HttpResponse::Ok()
-            .content_type(FEDERATION_CONTENT_TYPE)
-            .json(App::new(
-                app.ap_id,
-                String::new(),
-                vec![],
-                app.url,
-                app.name,
-                app.description,
-            )),
+        Ok(app) => {
+            let app_image = (!app.image.is_empty()).then(|| APImage::new(app.image));
+            HttpResponse::Ok()
+                .content_type(FEDERATION_CONTENT_TYPE)
+                .json(App::new(
+                    app.ap_id,
+                    String::new(),
+                    vec![],
+                    app.url,
+                    app.name,
+                    app.description,
+                    app_image,
+                ))
+        }
         Err(e) => {
             println!("Error fetching app from DB: {}", e);
             HttpResponse::NotFound().body("No beacon found")
@@ -106,6 +112,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let name = req_body.name.clone();
     let description = req_body.description.clone();
     let active = req_body.active;
+    let image = req_body.image.clone();
 
     // Query system user and DB information
     let system_user = get_system_user(&data).await.unwrap();
@@ -119,70 +126,92 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         Err(e) => panic!("Error fetching activities count: {}", e),
     };
 
-    // Check if app already exists, if so return 304
+    // Check if app already exists.
+    // If it does and nothing changed, return 304
+    // Otherwise, update the DB and send the relevant activities
     // TODO: Improve readability of this block
     match get_app_by_url(&data, &url).await {
         Ok(Some(app)) => {
-            if app.name != name || app.description != description || app.active != active {
-                match update_app(
-                    &data,
-                    url.clone(),
-                    name.clone(),
-                    description.clone(),
-                    active,
-                )
-                .await
-                {
-                    Ok(_) => {
-                        let activity = Update {
-                            actor: system_user.ap_id.clone(),
-                            object: app.ap_id.clone(),
-                            kind: UpdateType::Update,
-                            id: Url::from_str(&format!(
-                                "{}/activities/{}",
-                                domain,
-                                activities_count + 1
-                            ))
-                            .unwrap(),
-                        };
-                        match create_activity(
-                            &data,
-                            format!(
-                                "{}/activities/{}",
-                                system_user.ap_id.inner().as_str(),
-                                activities_count + 1
-                            ),
-                            system_user.ap_id.inner().as_str(),
-                            app.ap_id.inner().as_str(),
-                            "Update",
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                let recipients: Vec<DbRelay> =
-                                    match get_relay_followers(&data).await {
-                                        Ok(relays) => relays,
-                                        Err(e) => panic!("Error fetching relays: {}", e),
-                                    };
-                                let recipient_inboxes: Vec<Url> =
-                                    recipients.iter().map(|relay| relay.inbox.clone()).collect();
-                                let _ = system_user
-                                    .send(activity, recipient_inboxes, false, &data)
-                                    .await
-                                    .map_err(|e| println!("Error sending activity: {}", e));
-                            }
-                            Err(e) => {
-                                println!("ERROR CREATING ACTIVITY: {}", e.to_string());
-                                return HttpResponse::InternalServerError().body(e.to_string());
-                            }
-                        }
-
-                        return HttpResponse::Ok().finish();
-                    }
-                    Err(e) => println!("Error updating app: {}", e),
-                }
-            } else {
+            if app.name == name && app.description == description && app.active == active && app.image == image {
                 return HttpResponse::NotModified().finish();
+            }
+            let app_name = if app.name == name { &app.name } else { &name };
+            let app_description = if app.description == description { &app.description } else { &description };
+            let app_active = if app.active == active { app.active } else { active };
+            let app_image = if app.image == image { &app.image } else { &image };
+
+            let image = if app.image != image && app_image.contains("data:") {
+                let dataurl = match DataUrl::parse(&app_image) {
+                    Ok(dataurl) => dataurl,
+                    Err(_) => {
+                        return HttpResponse::BadRequest().finish();
+                    }
+                };
+                let ap_id = app.ap_id.clone().into_inner();
+                let count = ap_id.as_str().split("/").last().unwrap();
+                let image_url = format!("/images/{}.png", count);
+                let _ = std::fs::write(&image_url, dataurl.get_data());
+                image_url
+            } else {
+                app_image.clone()
+            };
+            match update_app(
+                &data,
+                url.clone(),
+                app_name.clone(),
+                app_description.clone(),
+                app_active,
+                image,
+            )
+            .await
+            {
+                Ok(_) => {
+                    let activity = Update {
+                        actor: system_user.ap_id.clone(),
+                        object: app.ap_id.clone(),
+                        kind: UpdateType::Update,
+                        id: Url::from_str(&format!(
+                            "{}/activities/{}",
+                            domain,
+                            activities_count + 1
+                        ))
+                        .unwrap(),
+                    };
+                    match create_activity(
+                        &data,
+                        format!(
+                            "{}/activities/{}",
+                            system_user.ap_id.inner().as_str(),
+                            activities_count + 1
+                        ),
+                        system_user.ap_id.inner().as_str(),
+                        app.ap_id.inner().as_str(),
+                        "Update",
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            let recipients: Vec<DbRelay> =
+                                match get_relay_followers(&data).await {
+                                    Ok(relays) => relays,
+                                    Err(e) => panic!("Error fetching relays: {}", e),
+                                };
+                            let recipient_inboxes: Vec<Url> =
+                                recipients.iter().map(|relay| relay.inbox.clone()).collect();
+                            let _ = system_user
+                                .send(activity, recipient_inboxes, false, &data)
+                                .await
+                                .map_err(|e| println!("Error sending activity: {}", e));
+                        }
+                        Err(e) => {
+                            println!("ERROR CREATING ACTIVITY: {}", e.to_string());
+                            return HttpResponse::InternalServerError().body(e.to_string());
+                        }
+                    }
+
+                    return HttpResponse::Ok().finish();
+                }
+                Err(e) => println!("Error updating app: {}", e),
             }
         }
         Ok(None) => {
@@ -193,7 +222,15 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
 
     // Create new app and send create activity to following relays
     let ap_id = format!("{}/beacon/{}", domain, apps_count);
-    match create_app(&data, ap_id, url, name, description, active).await {
+    let image_url = format!("images/{}.png", apps_count);
+    let dataurl = match DataUrl::parse(&image) {
+        Ok(dataurl) => dataurl,
+        Err(_) => {
+            return HttpResponse::BadRequest().finish();
+        }
+    };
+    let _ = std::fs::write(&image_url, dataurl.get_data());
+    match create_app(&data, ap_id, url, name, description, active, image_url).await {
         Ok(_) => (),
         Err(e) => println!("Error inserting new beacon: {}", e),
     };
@@ -224,6 +261,7 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
             ctx.insert("name", &app.name);
             ctx.insert("description", &app.description);
             ctx.insert("url", &app.url);
+            ctx.insert("image", &app.image);
             match data.tera.render("app.html", &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -249,18 +287,15 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
                 let url = Url::parse(&app.url).unwrap();
                 let host = url.host_str();
                 if let Some(hostname) = host {
-                    let _ = host_occurances.entry(hostname.to_string()).and_modify(|count| *count += 1).or_insert(0);
+                    let _ = host_occurances
+                        .entry(hostname.to_string())
+                        .and_modify(|count| *count += 1)
+                        .or_insert(0);
                 }
             });
             let high_occurances: Vec<String> = host_occurances
                 .into_iter()
-                .filter_map(|(host, count)| {
-                    if count > 3 {
-                        Some(host)
-                    } else {
-                        None
-                    }
-                })
+                .filter_map(|(host, count)| if count > 3 { Some(host) } else { None })
                 .collect();
             let mut ctx = tera::Context::new();
             ctx.insert("apps", &apps);
@@ -408,6 +443,13 @@ async fn request_login_token(
                 .finish(),
         )
         .finish()
+}
+
+#[get("/images/{id}")]
+async fn get_image(request: HttpRequest, _data: Data<AppState>) -> impl Responder {
+    let image_url = format!("images/{}", request.match_info().get("id").unwrap());
+    let image = std::fs::read(image_url).expect("Failed to read image");
+    HttpResponse::Ok().content_type("image/png").body(image)
 }
 
 #[get("/admin")]

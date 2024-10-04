@@ -65,14 +65,16 @@ pub async fn create_app(
     name: String,
     description: String,
     is_active: bool,
+    image_url: String,
 ) -> Result<(), Error> {
     let db = &data.db;
-    sqlx::query("INSERT INTO apps (activitypub_id, url, name, description, is_active) VALUES ($1, $2, $3, $4, $5)")
+    sqlx::query("INSERT INTO apps (activitypub_id, url, name, description, is_active, image) VALUES ($1, $2, $3, $4, $5, $6)")
         .bind(activitypub_id)
         .bind(url)
         .bind(name)
         .bind(description)
         .bind(is_active)
+        .bind(image_url)
         .execute(db)
         .await?;
     Ok(())
@@ -84,15 +86,19 @@ pub async fn update_app(
     name: String,
     description: String,
     is_active: bool,
+    image_url: String,
 ) -> Result<(), Error> {
     let db = &data.db;
-    sqlx::query("UPDATE apps SET name = $1, description = $2, is_active = $3 WHERE url = $4")
-        .bind(name)
-        .bind(description)
-        .bind(is_active)
-        .bind(url)
-        .execute(db)
-        .await?;
+    sqlx::query(
+        "UPDATE apps SET name = $1, description = $2, is_active = $3, image = $4 WHERE url = $5",
+    )
+    .bind(name)
+    .bind(description)
+    .bind(is_active)
+    .bind(image_url)
+    .bind(url)
+    .execute(db)
+    .await?;
     Ok(())
 }
 
