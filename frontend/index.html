@@ -23,7 +23,7 @@
   <div class="main-carousel" data-flickity='{ "wrapAround": true }'>
     {% for app in apps %}
     <div class="carousel-cell">
-      <a href="{{ app.url }}">{{ app.name }}</a>
+      <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
       <p>{{ app.description }}</p>
     </div>
     {% endfor %}
