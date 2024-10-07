@@ -119,6 +119,7 @@ impl ActivityHandler for Create {
             app.description,
             app.active,
             app.image,
+            app.adult,
         )
         .await?;
         create_activity(
@@ -169,6 +170,7 @@ impl ActivityHandler for Update {
             app.description,
             app.active,
             app.image,
+            app.adult,
         )
         .await?;
         create_activity(

@@ -49,3 +49,7 @@ nav {
 .carousel-cell p {
   padding: 0 2em;
 }
+
+[data-url-filtered] {
+  display: none;
+}

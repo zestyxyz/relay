@@ -20,15 +20,19 @@
     <p>Show results from the following domains:</p>
   {% for occurance in high_occurances %}
     {% if DEBUG or 'localhost' not in occurance %}
-    <input data-url="{{ occurance }}" type="checkbox" checked onchange="filterApps(this)">{{ occurance }}</option>
+    <input data-url="{{ occurance }}" type="checkbox" checked onchange="filterApps(this)">{{ occurance }}</input>
     {% endif %}
   {% endfor %}
+    <br>
+    <input id="adult" type="checkbox" onchange="filterAdultApps()">Show apps with Adult content?</input>
   </div>
   <hr>
+  <input id="search" type="text" oninput="searchApps()">
   <div class="list-container">
   {% for app in apps %}
     {% if DEBUG or 'localhost' not in app.url %}
-    <div class="card" data-url="{{ app.url }}">
+
+    <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}">
       <a href="/app/{{ loop.index - 1 }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
       <p>{{ app.description }}</p>
       <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
@@ -38,6 +42,11 @@
   </div>
   <script>
     const appsList = document.querySelector('.list-container');
+    /** @type {HTMLInputElement} */
+    const search = document.querySelector('#search');
+    /** @type {HTMLInputElement} */
+    const adult = document.querySelector('#adult');
+
     function filterApps(checkbox) {
       const checked = checkbox.checked;
       const hostURL = checkbox.getAttribute('data-url');
@@ -45,9 +54,45 @@
         const url = app.getAttribute('data-url');
         if (url.includes(hostURL) && !url.includes(`.${hostURL}`)) {
           app.style.display = checked ? 'block' : 'none';
+          if (!checked)
+            app.setAttribute('data-url-filtered', "");
+          else
+            app.removeAttribute('data-url-filtered');
+        }
+      }
+      searchApps();
+      filterAdultApps();
+    }
+    function filterAdultApps() {
+      for (const app of appsList.children) {
+        if (app.hasAttribute('data-url-filtered')) continue;
+
+        const isAdult = app.getAttribute('data-adult');
+        if (isAdult == "true") {
+          app.style.display = adult.checked ? 'block' : 'none';
         }
       }
     }
+    /**
+     * Very basic filter search that checks for the term in the app card HTML
+     * @param {HTMLInputElement} textField
+     */
+    function searchApps() {
+      for (const app of appsList.children) {
+        if (app.hasAttribute('data-url-filtered')) continue;
+
+        if (app.innerHTML.toLowerCase().includes(search.value)) {
+          app.style.display = 'block';
+        } else {
+          console.log(app.innerHTML);
+          app.style.display = 'none';
+        }
+      }
+
+      filterAdultApps();
+    }
+
+    filterAdultApps();
   </script>
 </body>
 </html>

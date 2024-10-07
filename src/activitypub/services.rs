@@ -36,6 +36,7 @@ pub struct BeaconPayload {
     pub description: String,
     pub active: bool,
     pub image: String,
+    pub adult: bool,
 }
 
 #[derive(Serialize)]
@@ -96,6 +97,7 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
                     app.name,
                     app.description,
                     app_image,
+                    app.adult,
                 ))
         }
         Err(e) => {
@@ -113,6 +115,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let description = req_body.description.clone();
     let active = req_body.active;
     let image = req_body.image.clone();
+    let adult = req_body.adult;
 
     // Query system user and DB information
     let system_user = get_system_user(&data).await.unwrap();
@@ -139,11 +142,13 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
             let app_description = if app.description == description { &app.description } else { &description };
             let app_active = if app.active == active { app.active } else { active };
             let app_image = if app.image == image { &app.image } else { &image };
+            let app_adult = if app.adult == adult { app.adult } else { adult };
 
             let image = if app.image != image && app_image.contains("data:") {
                 let dataurl = match DataUrl::parse(&app_image) {
                     Ok(dataurl) => dataurl,
-                    Err(_) => {
+                    Err(e) => {
+                        println!("Error parsing image data: {:?}", e);
                         return HttpResponse::BadRequest().finish();
                     }
                 };
@@ -162,6 +167,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                 app_description.clone(),
                 app_active,
                 image,
+                app_adult,
             )
             .await
             {
@@ -222,15 +228,22 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
 
     // Create new app and send create activity to following relays
     let ap_id = format!("{}/beacon/{}", domain, apps_count);
-    let image_url = format!("images/{}.png", apps_count);
-    let dataurl = match DataUrl::parse(&image) {
-        Ok(dataurl) => dataurl,
-        Err(_) => {
-            return HttpResponse::BadRequest().finish();
-        }
+    let image_url = if image.contains("data:") {
+        let dataurl = match DataUrl::parse(&image) {
+            Ok(dataurl) => dataurl,
+            Err(e) => {
+                println!("Error parsing image data: {:?}", e);
+                return HttpResponse::BadRequest().finish();
+            }
+        };
+        let path = format!("images/{}.png", apps_count);
+        let _ = std::fs::write(&path, dataurl.get_data());
+        format!("/{}", path)
+    } else {
+        image
     };
-    let _ = std::fs::write(&image_url, dataurl.get_data());
-    match create_app(&data, ap_id, url, name, description, active, image_url).await {
+
+    match create_app(&data, ap_id, url, name, description, active, image_url, adult).await {
         Ok(_) => (),
         Err(e) => println!("Error inserting new beacon: {}", e),
     };
