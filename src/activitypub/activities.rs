@@ -120,6 +120,7 @@ impl ActivityHandler for Create {
             app.active,
             app.image,
             app.adult,
+            app.tags,
         )
         .await?;
         create_activity(
@@ -171,6 +172,7 @@ impl ActivityHandler for Update {
             app.active,
             app.image,
             app.adult,
+            app.tags,
         )
         .await?;
         create_activity(

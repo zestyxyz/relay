@@ -22,6 +22,7 @@ pub struct DbApp {
     pub active: bool,
     pub image: String,
     pub adult: bool,
+    pub tags: String,
 }
 
 impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
@@ -35,6 +36,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
             active: row.try_get("is_active")?,
             image: row.try_get("image")?,
             adult: row.try_get("is_adult")?,
+            tags: row.try_get("tags")?,
         })
     }
 }
@@ -48,6 +50,7 @@ impl DbApp {
         active: bool,
         image: String,
         adult: bool,
+        tags: String,
     ) -> Self {
         Self {
             ap_id,
@@ -57,6 +60,7 @@ impl DbApp {
             active,
             image,
             adult,
+            tags,
         }
     }
 }
@@ -96,6 +100,8 @@ pub struct App {
     #[serde(deserialize_with = "deserialize_skip_error", default)]
     image: Option<APImage>,
     sensitive: bool,
+    // Non-standard field
+    tags: String,
 }
 
 impl App {
@@ -108,6 +114,7 @@ impl App {
         summary: String,
         image: Option<APImage>,
         sensitive: bool,
+        tags: String,
     ) -> Self {
         Self {
             kind: PageType::Page,
@@ -119,6 +126,7 @@ impl App {
             summary,
             image,
             sensitive,
+            tags,
         }
     }
 }
@@ -151,6 +159,7 @@ impl Object for DbApp {
             content: self.url,
             image: Some(APImage::new(self.image)),
             sensitive: self.adult,
+            tags: self.tags,
         })
     }
 
@@ -176,6 +185,7 @@ impl Object for DbApp {
             active: true,
             image: image.unwrap_or("".to_string()),
             adult: json.sensitive,
+            tags: json.tags,
         };
         Ok(app)
     }

@@ -37,6 +37,7 @@ pub struct BeaconPayload {
     pub active: bool,
     pub image: String,
     pub adult: bool,
+    pub tags: String,
 }
 
 #[derive(Serialize)]
@@ -98,6 +99,7 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
                     app.description,
                     app_image,
                     app.adult,
+                    app.tags,
                 ))
         }
         Err(e) => {
@@ -116,6 +118,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let active = req_body.active;
     let image = req_body.image.clone();
     let adult = req_body.adult;
+    let tags = req_body.tags.clone();
 
     // Query system user and DB information
     let system_user = get_system_user(&data).await.unwrap();
@@ -143,6 +146,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
             let app_active = if app.active == active { app.active } else { active };
             let app_image = if app.image == image { &app.image } else { &image };
             let app_adult = if app.adult == adult { app.adult } else { adult };
+            let app_tags = if app.tags == tags { app.tags } else { tags.clone() };
 
             let image = if app.image != image && app_image.contains("data:") {
                 let dataurl = match DataUrl::parse(&app_image) {
@@ -168,6 +172,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                 app_active,
                 image,
                 app_adult,
+                app_tags.clone(),
             )
             .await
             {
@@ -243,7 +248,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         image
     };
 
-    match create_app(&data, ap_id, url, name, description, active, image_url, adult).await {
+    match create_app(&data, ap_id, url, name, description, active, image_url, adult, tags.clone()).await {
         Ok(_) => (),
         Err(e) => println!("Error inserting new beacon: {}", e),
     };
@@ -312,8 +317,9 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
                 .collect();
             let mut ctx = tera::Context::new();
             ctx.insert("apps", &apps);
-            ctx.insert("DEBUG", &data.debug);
             ctx.insert("high_occurances", &high_occurances);
+            ctx.insert("DEBUG", &data.debug);
+            ctx.insert("SHOW_ADULT_CONTENT", &data.show_adult_content);
             match data.tera.render("apps.html", &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),

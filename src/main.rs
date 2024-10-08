@@ -23,6 +23,7 @@ pub struct AppState {
     db: Pool<Postgres>,
     tera: Tera,
     debug: bool,
+    show_adult_content: bool,
 }
 
 #[tokio::main]
@@ -35,6 +36,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
     let full_domain = format!("{}{}", protocol, domain);
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let show_adult_content = env::var("SHOW_ADULT_CONTENT").unwrap_or("false".to_string()) == "true";
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
@@ -72,6 +74,7 @@ async fn main() -> Result<(), anyhow::Error> {
             db: pool.clone(),
             tera,
             debug,
+            show_adult_content,
         })
         .debug(debug)
         .build()
