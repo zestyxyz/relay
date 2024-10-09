@@ -10,6 +10,7 @@ The relay prototype can be launched either with Docker or on your local system.
 
 - [Install Docker for your system](https://docs.docker.com/engine/install/)
 - Copy `.env.sample` to `.env` and fill in the fields as appropriate
+  - Make sure your DB URL points to postgres:5432 and not localhost:5432.
 - Run `docker compose up -d` to spin up the necessary containers.
 
 ### Non-Docker
