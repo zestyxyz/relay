@@ -70,7 +70,7 @@ pub async fn create_app(
     tags: String,
 ) -> Result<(), Error> {
     let db = &data.db;
-    sqlx::query("INSERT INTO apps (activitypub_id, url, name, description, is_active, image, is_adult) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
+    sqlx::query("INSERT INTO apps (activitypub_id, url, name, description, is_active, image, is_adult, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
         .bind(activitypub_id)
         .bind(url)
         .bind(name)
