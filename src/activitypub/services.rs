@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::str::FromStr;
 
 use activitypub_federation::actix_web::inbox::receive_activity;
@@ -111,6 +112,10 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
 
 #[put("/beacon")]
 async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) -> impl Responder {
+    // Env vars
+    let relay_domain = env::var("DOMAIN").expect("DOMAIN must be set");
+    let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
+
     // Extract fields from request body
     let url = req_body.url.clone();
     let name = req_body.name.clone();
@@ -158,7 +163,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                 };
                 let ap_id = app.ap_id.clone().into_inner();
                 let count = ap_id.as_str().split("/").last().unwrap();
-                let image_url = format!("/images/{}.png", count);
+                let image_url = format!("{}{}/images/{}.png", protocol, relay_domain, count);
                 let _ = std::fs::write(&image_url, dataurl.get_data());
                 image_url
             } else {
@@ -243,7 +248,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         };
         let path = format!("images/{}.png", apps_count);
         let _ = std::fs::write(&path, dataurl.get_data());
-        format!("/{}", path)
+        format!("{}{}/images/{}.png", protocol, relay_domain, apps_count)
     } else {
         image
     };
