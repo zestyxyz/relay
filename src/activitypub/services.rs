@@ -35,9 +35,9 @@ pub struct BeaconPayload {
     pub name: String,
     pub description: String,
     pub active: bool,
-    pub image: String,
-    pub adult: bool,
-    pub tags: String,
+    pub image: Option<String>,
+    pub adult: Option<bool>,
+    pub tags: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -116,9 +116,9 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let name = req_body.name.clone();
     let description = req_body.description.clone();
     let active = req_body.active;
-    let image = req_body.image.clone();
-    let adult = req_body.adult;
-    let tags = req_body.tags.clone();
+    let image = req_body.image.clone().unwrap_or("#".to_string());
+    let adult = req_body.adult.unwrap_or(false);
+    let tags = req_body.tags.clone().unwrap_or("".to_string());
 
     // Query system user and DB information
     let system_user = get_system_user(&data).await.unwrap();
