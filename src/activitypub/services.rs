@@ -151,7 +151,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
             let app_name = if app.name == name { &app.name } else { &name };
             let app_description = if app.description == description { &app.description } else { &description };
             let app_active = if app.active == active { app.active } else { active };
-            let app_image = if app.image == image { &app.image } else { &image };
+            let app_image = if app.image == image || image == "#" { &app.image } else { &image };
             let app_adult = if app.adult == adult { app.adult } else { adult };
             let app_tags = if app.tags == tags { app.tags } else { tags.clone() };
 
