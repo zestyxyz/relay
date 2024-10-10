@@ -68,12 +68,14 @@ fn server_fail_screen(e: super::error::Error) -> web::Html {
 
 #[get("/")]
 async fn index(data: Data<AppState>) -> impl Responder {
-    let count = get_apps_count(&data).await.unwrap();
     match get_all_apps(&data).await {
         Ok(mut apps) => {
+            if !data.debug {
+                apps.retain(|app| !app.url.contains("localhost"));
+            }
             apps.truncate(20);
             let mut ctx = tera::Context::new();
-            ctx.insert("apps_count", &count);
+            ctx.insert("apps_count", &apps.len());
             ctx.insert("apps", &apps);
             match data.tera.render("index.html", &ctx) {
                 Ok(html) => web::Html::new(html),
