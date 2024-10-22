@@ -10,7 +10,7 @@ use activitypub_federation::kinds::activity::{CreateType, UpdateType};
 use activitypub_federation::kinds::actor::ServiceType;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor};
-use activitypub_federation::FEDERATION_CONTENT_TYPE;
+use activitypub_federation::{error, FEDERATION_CONTENT_TYPE};
 use actix_web::cookie::{time, Cookie};
 use actix_web::web::{self, Bytes};
 use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
@@ -68,6 +68,7 @@ fn server_fail_screen(e: super::error::Error) -> web::Html {
 
 #[get("/")]
 async fn index(data: Data<AppState>) -> impl Responder {
+    let template_path = get_template_path(&data, "index");
     match get_all_apps(&data).await {
         Ok(mut apps) => {
             if !data.debug {
@@ -77,7 +78,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &apps.len());
             ctx.insert("apps", &apps);
-            match data.tera.render("index.html", &ctx) {
+            match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
@@ -145,15 +146,35 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     // TODO: Improve readability of this block
     match get_app_by_url(&data, &url).await {
         Ok(Some(app)) => {
-            if app.name == name && app.description == description && app.active == active && app.image == image {
+            if app.name == name
+                && app.description == description
+                && app.active == active
+                && app.image == image
+            {
                 return HttpResponse::NotModified().finish();
             }
             let app_name = if app.name == name { &app.name } else { &name };
-            let app_description = if app.description == description { &app.description } else { &description };
-            let app_active = if app.active == active { app.active } else { active };
-            let app_image = if app.image == image || image == "#" { &app.image } else { &image };
+            let app_description = if app.description == description {
+                &app.description
+            } else {
+                &description
+            };
+            let app_active = if app.active == active {
+                app.active
+            } else {
+                active
+            };
+            let app_image = if app.image == image || image == "#" {
+                &app.image
+            } else {
+                &image
+            };
             let app_adult = if app.adult == adult { app.adult } else { adult };
-            let app_tags = if app.tags == tags { app.tags } else { tags.clone() };
+            let app_tags = if app.tags == tags {
+                app.tags
+            } else {
+                tags.clone()
+            };
 
             let image = if app.image != image && app_image.contains("data:") {
                 let dataurl = match DataUrl::parse(&app_image) {
@@ -209,11 +230,10 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                     .await
                     {
                         Ok(_) => {
-                            let recipients: Vec<DbRelay> =
-                                match get_relay_followers(&data).await {
-                                    Ok(relays) => relays,
-                                    Err(e) => panic!("Error fetching relays: {}", e),
-                                };
+                            let recipients: Vec<DbRelay> = match get_relay_followers(&data).await {
+                                Ok(relays) => relays,
+                                Err(e) => panic!("Error fetching relays: {}", e),
+                            };
                             let recipient_inboxes: Vec<Url> =
                                 recipients.iter().map(|relay| relay.inbox.clone()).collect();
                             let _ = system_user
@@ -255,7 +275,19 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         image
     };
 
-    match create_app(&data, ap_id, url, name, description, active, image_url, adult, tags.clone()).await {
+    match create_app(
+        &data,
+        ap_id,
+        url,
+        name,
+        description,
+        active,
+        image_url,
+        adult,
+        tags.clone(),
+    )
+    .await
+    {
         Ok(_) => (),
         Err(e) => println!("Error inserting new beacon: {}", e),
     };
@@ -280,6 +312,8 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
 
 #[get("/app/{id}")]
 async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
+    let template_path = get_template_path(&data, "app");
+    let error_path = get_template_path(&data, "error");
     match get_app_by_id(path.into_inner() + 1, &data).await {
         Ok(app) => {
             let mut ctx = tera::Context::new();
@@ -287,14 +321,14 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
             ctx.insert("description", &app.description);
             ctx.insert("url", &app.url);
             ctx.insert("image", &app.image);
-            match data.tera.render("app.html", &ctx) {
+            match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
         }
         Err(e) => {
             println!("Error fetching app from DB: {}", e);
-            match data.tera.render("error.html", &Context::new()) {
+            match data.tera.render(&error_path, &Context::new()) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
@@ -304,6 +338,8 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
 
 #[get("/apps")]
 async fn get_apps(data: Data<AppState>) -> impl Responder {
+    let template_path = get_template_path(&data, "apps");
+    let error_path = get_template_path(&data, "error");
     match get_all_apps(&data).await {
         Ok(apps) => {
             // TODO: See if calculating this can be lifted off a hot path
@@ -327,14 +363,14 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
             ctx.insert("high_occurances", &high_occurances);
             ctx.insert("DEBUG", &data.debug);
             ctx.insert("SHOW_ADULT_CONTENT", &data.show_adult_content);
-            match data.tera.render("apps.html", &ctx) {
+            match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
         }
         Err(e) => {
             println!("Error fetching apps from DB: {}", e);
-            match data.tera.render("error.html", &Context::new()) {
+            match data.tera.render(&error_path, &Context::new()) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
@@ -344,18 +380,20 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
 
 #[get("/relays")]
 async fn get_relays(data: Data<AppState>) -> impl Responder {
+    let template_path = get_template_path(&data, "relays");
+    let error_path = get_template_path(&data, "error");
     match get_all_relays(&data).await {
         Ok(relays) => {
             let mut ctx = tera::Context::new();
             ctx.insert("relays", &relays);
-            match data.tera.render("relays.html", &ctx) {
+            match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
         }
         Err(e) => {
             println!("Error fetching apps from DB: {}", e);
-            match data.tera.render("error.html", &Context::new()) {
+            match data.tera.render(&error_path, &Context::new()) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
@@ -427,7 +465,8 @@ pub async fn not_found(request: HttpRequest, data: Data<AppState>) -> impl Respo
         request.uri().path(),
         request.method().as_str()
     );
-    match data.tera.render("error.html", &Context::new()) {
+    let error_path = get_template_path(&data, "error");
+    match data.tera.render(&error_path, &Context::new()) {
         Ok(html) => web::Html::new(html),
         Err(e) => template_fail_screen(e),
     }
@@ -435,7 +474,8 @@ pub async fn not_found(request: HttpRequest, data: Data<AppState>) -> impl Respo
 
 #[get("/login")]
 async fn login(_request: HttpRequest, data: Data<AppState>) -> impl Responder {
-    match data.tera.render("login.html", &Context::new()) {
+    let template_path = get_template_path(&data, "login");
+    match data.tera.render(&template_path, &Context::new()) {
         Ok(html) => web::Html::new(html),
         Err(e) => template_fail_screen(e),
     }
@@ -480,16 +520,18 @@ async fn get_image(request: HttpRequest, _data: Data<AppState>) -> impl Responde
 
 #[get("/admin")]
 async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responder {
+    let template_path = get_template_path(&data, "admin");
+    let error_path = get_template_path(&data, "error");
     let cookie = request.cookie("relay-admin-token");
     if cookie.is_none() {
-        return match data.tera.render("error.html", &Context::new()) {
+        return match data.tera.render(&error_path, &Context::new()) {
             Ok(html) => web::Html::new(html),
             Err(e) => template_fail_screen(e),
         };
     }
     let mut ctx = tera::Context::new();
     ctx.insert("message", "");
-    match data.tera.render("admin.html", &ctx) {
+    match data.tera.render(&template_path, &ctx) {
         Ok(html) => web::Html::new(html),
         Err(e) => template_fail_screen(e),
     }
@@ -532,8 +574,9 @@ async fn admin_follow(
     let db_user = get_system_user(&data).await.unwrap();
     let mut ctx = tera::Context::new();
     ctx.insert("message", "Successfully followed!");
+    let template_path = get_template_path(&data, "admin");
     match db_user.follow(&req_body.follow_url, &data).await {
-        Ok(_) => match data.tera.render("admin.html", &ctx) {
+        Ok(_) => match data.tera.render(&template_path, &ctx) {
             Ok(html) => HttpResponse::Ok().body(html),
             Err(e) => {
                 println!("{}", e);
@@ -541,5 +584,13 @@ async fn admin_follow(
             }
         },
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
+
+fn get_template_path(data: &Data<AppState>, page: &str) -> String {
+    if *data.is_custom_page.get(page).unwrap() {
+        format!("{}.html", page)
+    } else {
+        format!("{}.default.html", page)
     }
 }
