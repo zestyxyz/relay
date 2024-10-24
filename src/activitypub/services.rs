@@ -514,8 +514,15 @@ async fn request_login_token(
 #[get("/images/{id}")]
 async fn get_image(request: HttpRequest, _data: Data<AppState>) -> impl Responder {
     let image_url = format!("images/{}", request.match_info().get("id").unwrap());
-    let image = std::fs::read(image_url).expect("Failed to read image");
-    HttpResponse::Ok().content_type("image/png").body(image)
+    let image = std::fs::read(&image_url).expect("Failed to read image");
+    let mime = match image_url.split('.').last() {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("svg") => "image/svg+xml",
+        _ => "image/jpeg",
+    };
+    HttpResponse::Ok().content_type(mime).body(image)
 }
 
 #[get("/admin")]
