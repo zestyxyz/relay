@@ -71,10 +71,19 @@ async fn index(data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "index");
     match get_all_apps(&data).await {
         Ok(mut apps) => {
+            // Filter apps for display in the front carousel
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
             }
+            let mut unique_urls = HashSet::new();
+            apps.retain(|app| {
+                let url = Url::parse(&app.url)
+                    .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
+                unique_urls.insert(url.host_str().unwrap().to_string())
+            });
             apps.truncate(20);
+
+            // Render
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &apps.len());
             ctx.insert("apps", &apps);
