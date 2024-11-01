@@ -75,6 +75,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
             }
+            let total_apps_count = apps.len();
             let mut unique_urls = HashSet::new();
             apps.retain(|app| {
                 let url = Url::parse(&app.url)
@@ -85,7 +86,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
 
             // Render
             let mut ctx = tera::Context::new();
-            ctx.insert("apps_count", &apps.len());
+            ctx.insert("apps_count", &total_apps_count);
             ctx.insert("apps", &apps);
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
