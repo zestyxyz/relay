@@ -23,5 +23,11 @@
     <input type="submit" value="Follow">
   </form>
   <p>{{ message }}</p>
+  <h2>Toggle App Visibility</h2>
+  <form action="/admin/togglevisible" method="post">
+    <label for="ToggleVisible">App ID</label>
+    <input type="text" name="app_id" id="app_id">
+    <input type="submit" value="ToggleVisible">
+  </form>
 </body>
 </html>

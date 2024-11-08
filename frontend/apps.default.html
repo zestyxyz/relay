@@ -33,7 +33,7 @@
   <input id="search" type="text" oninput="searchApps()">
   <div class="list-container">
   {% for app in apps %}
-    {% if (DEBUG or ('localhost' not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) %}
+    {% if (DEBUG or ('localhost' not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
     <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}">
       <a href="/app/{{ loop.index - 1 }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
       <p>{{ app.description }}</p>

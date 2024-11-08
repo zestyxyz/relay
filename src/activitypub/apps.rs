@@ -23,6 +23,7 @@ pub struct DbApp {
     pub image: String,
     pub adult: bool,
     pub tags: String,
+    pub visible: bool,
 }
 
 impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
@@ -37,6 +38,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
             image: row.try_get("image")?,
             adult: row.try_get("is_adult")?,
             tags: row.try_get("tags")?,
+            visible: row.try_get("visible")?,
         })
     }
 }
@@ -51,6 +53,7 @@ impl DbApp {
         image: String,
         adult: bool,
         tags: String,
+        visible: bool,
     ) -> Self {
         Self {
             ap_id,
@@ -61,6 +64,7 @@ impl DbApp {
             image,
             adult,
             tags,
+            visible,
         }
     }
 }
@@ -186,6 +190,7 @@ impl Object for DbApp {
             image: image.unwrap_or("".to_string()),
             adult: json.sensitive,
             tags: json.tags,
+            visible: true,
         };
         Ok(app)
     }

@@ -26,7 +26,7 @@ use super::apps::{APImage, App};
 use super::db::{
     create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
     get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
-    get_relay_followers, get_system_user, update_app,
+    get_relay_followers, get_system_user, toggle_app_visibility, update_app,
 };
 use crate::AppState;
 
@@ -54,6 +54,11 @@ pub struct LoginPayload {
 #[derive(Deserialize)]
 pub struct FollowPayload {
     follow_url: String,
+}
+
+#[derive(Deserialize)]
+pub struct ToggleVisibilityPayload {
+    app_id: i32,
 }
 
 fn template_fail_screen(e: tera::Error) -> web::Html {
@@ -587,6 +592,33 @@ async fn admin_follow(
                 HttpResponse::InternalServerError().body(e.to_string())
             }
         },
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
+
+#[post("/admin/togglevisible")]
+async fn admin_toggle_visible(
+    request: HttpRequest,
+    req_body: web::Form<ToggleVisibilityPayload>,
+    data: Data<AppState>,
+) -> HttpResponse {
+    let cookie = request.cookie("relay-admin-token");
+    if cookie.is_none() {
+        return HttpResponse::InternalServerError().body("Authorization error occurred.");
+    }
+    match toggle_app_visibility(req_body.app_id + 1, &data).await {
+        Ok(_) => {
+            let mut ctx = tera::Context::new();
+            ctx.insert("message", "Visiblity toggled!");
+            let template_path = get_template_path(&data, "admin");
+            match data.tera.render(&template_path, &ctx) {
+                Ok(html) => HttpResponse::Ok().body(html),
+                Err(e) => {
+                    println!("{}", e);
+                    return HttpResponse::InternalServerError().body(e.to_string());
+                }
+            }
+        }
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
