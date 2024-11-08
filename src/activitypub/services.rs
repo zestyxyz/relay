@@ -527,19 +527,17 @@ async fn get_image(request: HttpRequest, _data: Data<AppState>) -> impl Responde
 #[get("/admin")]
 async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "admin");
-    let error_path = get_template_path(&data, "error");
     let cookie = request.cookie("relay-admin-token");
     if cookie.is_none() {
-        return match data.tera.render(&error_path, &Context::new()) {
-            Ok(html) => web::Html::new(html),
-            Err(e) => template_fail_screen(e),
-        };
+        return HttpResponse::TemporaryRedirect()
+            .append_header(("Location", "/login"))
+            .finish();
     }
     let mut ctx = tera::Context::new();
     ctx.insert("message", "");
     match data.tera.render(&template_path, &ctx) {
-        Ok(html) => web::Html::new(html),
-        Err(e) => template_fail_screen(e),
+        Ok(html) => HttpResponse::Ok().body(html),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
