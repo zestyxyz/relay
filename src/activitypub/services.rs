@@ -10,7 +10,7 @@ use activitypub_federation::kinds::activity::{CreateType, UpdateType};
 use activitypub_federation::kinds::actor::ServiceType;
 use activitypub_federation::protocol::context::WithContext;
 use activitypub_federation::traits::{ActivityHandler, Actor};
-use activitypub_federation::{error, FEDERATION_CONTENT_TYPE};
+use activitypub_federation::FEDERATION_CONTENT_TYPE;
 use actix_web::cookie::{time, Cookie};
 use actix_web::web::{self, Bytes};
 use actix_web::{get, post, put, HttpRequest, HttpResponse, Responder};
@@ -153,9 +153,9 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     // Check if app already exists.
     // If it does and nothing changed, return 304
     // Otherwise, update the DB and send the relevant activities
-    // TODO: Improve readability of this block
     match get_app_by_url(&data, &url).await {
         Ok(Some(app)) => {
+            // Check if no fields have changed, in which case exit early
             if app.name == name
                 && app.description == description
                 && app.active == active
@@ -163,45 +163,37 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
             {
                 return HttpResponse::NotModified().finish();
             }
-            let app_name = if app.name == name { &app.name } else { &name };
-            let app_description = if app.description == description {
-                &app.description
-            } else {
-                &description
-            };
-            let app_active = if app.active == active {
-                app.active
-            } else {
-                active
-            };
+
+            // Set up references to the latest values for each field
+            let app_name = &get_latest_value(app.name.clone(), name.clone());
+            let app_description = &get_latest_value(app.description.clone(), description.clone());
+            let app_active = get_latest_value(app.active, active);
             let app_image = if app.image == image || image == "#" {
                 &app.image
             } else {
                 &image
             };
-            let app_adult = if app.adult == adult { app.adult } else { adult };
-            let app_tags = if app.tags == tags {
-                app.tags
-            } else {
-                tags.clone()
-            };
+            let app_adult = get_latest_value(app.adult, adult);
+            let app_tags = get_latest_value(app.tags.clone(), tags.clone());
 
+            // Parse optionally attached image to see if we need to save a copy locally
             let image = if app.image != image && app_image.contains("data:") {
-                let dataurl = match DataUrl::parse(&app_image) {
-                    Ok(dataurl) => dataurl,
-                    Err(e) => {
-                        println!("Error parsing image data: {:?}", e);
-                        return HttpResponse::BadRequest().finish();
-                    }
-                };
-                let ap_id = app.ap_id.clone().into_inner();
-                let count = ap_id.as_str().split("/").last().unwrap();
-                let image_url = format!("{}{}/images/{}.png", protocol, relay_domain, count);
-                let _ = std::fs::write(&image_url, dataurl.get_data());
+                let image_url = create_local_image(
+                    &app.ap_id.clone().into_inner().as_str(),
+                    &protocol,
+                    &relay_domain,
+                    app_image,
+                );
+                if image_url.is_empty() {
+                    println!("Error creating local image");
+                    return HttpResponse::BadRequest().finish();
+                }
+
                 image_url
             } else {
                 app_image.clone()
             };
+
             match update_app(
                 &data,
                 url.clone(),
@@ -268,19 +260,16 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
         Err(e) => println!("Error fetching app from DB: {}", e),
     }
 
-    // Create new app and send create activity to following relays
+    // At this point, it should be certain that the app doesn't already exist.
+    // Create a new app and send the Create activity to following relays
     let ap_id = format!("{}/beacon/{}", domain, apps_count);
     let image_url = if image.contains("data:") {
-        let dataurl = match DataUrl::parse(&image) {
-            Ok(dataurl) => dataurl,
-            Err(e) => {
-                println!("Error parsing image data: {:?}", e);
-                return HttpResponse::BadRequest().finish();
-            }
-        };
-        let path = format!("images/{}.png", apps_count);
-        let _ = std::fs::write(&path, dataurl.get_data());
-        format!("{}{}/images/{}.png", protocol, relay_domain, apps_count)
+        let image_url = create_local_image(&ap_id, &protocol, &relay_domain, &image);
+        if image_url.is_empty() {
+            println!("Error creating local image");
+            return HttpResponse::BadRequest().finish();
+        }
+        image_url
     } else {
         image
     };
@@ -609,5 +598,27 @@ fn get_template_path(data: &Data<AppState>, page: &str) -> String {
         format!("{}.html", page)
     } else {
         format!("{}.default.html", page)
+    }
+}
+
+fn create_local_image(ap_id: &str, protocol: &str, relay_domain: &str, app_image: &str) -> String {
+    let dataurl = match DataUrl::parse(app_image) {
+        Ok(dataurl) => dataurl,
+        Err(e) => {
+            println!("Error parsing image data: {:?}", e);
+            return "".to_string();
+        }
+    };
+    let count = ap_id.split("/").last().unwrap();
+    let image_url = format!("{}{}/images/{}.png", protocol, relay_domain, count);
+    let _ = std::fs::write(&image_url, dataurl.get_data());
+    image_url
+}
+
+fn get_latest_value<T: PartialEq>(original: T, incoming: T) -> T {
+    if original != incoming {
+        incoming
+    } else {
+        original
     }
 }
