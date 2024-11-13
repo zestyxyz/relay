@@ -1,19 +1,15 @@
-# Spatial Internet Graph Relay Prototype Server
+# Distributed Spatial Internet Graph Relay
 
-This is the current prototype for the SIG relay server, written in Rust.
+This is the current prototype for the DSIG relay server, written in Rust.
 
-## Setup
-
-The relay prototype can be launched either with Docker or on your local system.
-
-### Docker
+### Setup with Docker
 
 - [Install Docker for your system](https://docs.docker.com/engine/install/)
 - Copy `.env.sample` to `.env` and fill in the fields as appropriate
   - Make sure your DB URL points to postgres:5432 and not localhost:5432.
 - Run `docker compose up -d` to spin up the necessary containers.
 
-### Non-Docker
+### Non-Docker Setup
 
 - [Install Rust](https://www.rust-lang.org/tools/install)
 - Install necessary dependencies
