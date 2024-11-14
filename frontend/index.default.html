@@ -25,6 +25,9 @@
     <div class="carousel-cell">
       <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
       <p>{{ app.description }}</p>
+      {% if app.image != "#" %}
+      <img width="100%" height="auto" src="{{app.image}}">
+      {% endif %}
     </div>
     {% endfor %}
   </div>

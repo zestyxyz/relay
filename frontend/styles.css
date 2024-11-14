@@ -47,7 +47,7 @@ nav {
 }
 
 .carousel-cell {
-  height: 10em;
+  height: fit-content;
 }
 
 .carousel-cell p {
