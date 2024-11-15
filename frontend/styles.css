@@ -17,7 +17,7 @@ nav {
   width: 100%;
 }
 
-.list-container {
+.app-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   grid-gap: 20px;
@@ -41,9 +41,10 @@ nav {
 
 .card, .carousel-cell {
   border-radius: 16px;
-  padding: 1em;
+  padding: 2em;
   text-overflow: ellipsis;
   overflow: hidden;
+  margin-bottom: 20px;
 }
 
 .carousel-cell {

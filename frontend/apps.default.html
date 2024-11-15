@@ -17,12 +17,6 @@
   </header>
   <h1>Apps List</h1>
   <div>
-    <p>Show results from the following domains:</p>
-  {% for occurance in high_occurances %}
-    {% if DEBUG or 'localhost' not in occurance %}
-    <input data-url="{{ occurance }}" type="checkbox" checked onchange="filterApps(this)">{{ occurance }}</input>
-    {% endif %}
-  {% endfor %}
     <br>
     {% if SHOW_ADULT_CONTENT %}
     <input id="adult" type="checkbox" onchange="filterAdultApps()">Show apps with 18+ content?</input>
@@ -32,14 +26,20 @@
   <label for="search">Search</label>
   <input id="search" type="text" oninput="searchApps()">
   <div class="list-container">
-  {% for app in apps %}
-    {% if (DEBUG or ('localhost' not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
-    <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}">
-      <a href="/app/{{ loop.index - 1 }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
-      <p>{{ app.description }}</p>
-      <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
-    </div>
-    {% endif %}
+  {% for appgroup in apps %}
+    <details class="app-container">
+      <summary>{{ appgroup[0].name }}</summary>
+      {% for app in appgroup %}
+        {% if (DEBUG or ('localhost' not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
+        <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}">
+
+          <a href="{{ app_pages[app.url] }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
+          <p>{{ app.description }}</p>
+          <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </details>
   {% endfor %}
   </div>
   <script>

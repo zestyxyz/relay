@@ -1,3 +1,5 @@
+use std::env;
+
 use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::protocol::helpers::{deserialize_one_or_many, deserialize_skip_error};
@@ -66,6 +68,16 @@ impl DbApp {
             tags,
             visible,
         }
+    }
+
+    pub fn page_url(&self) -> String {
+        let domain = env::var("DOMAIN").expect("DOMAIN must be set");
+        let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
+        let full_domain = format!("{}{}", protocol, domain);
+
+        let ap_id = self.ap_id.clone().into_inner();
+        let idx = ap_id.as_str().split("/").last().expect("This app should have an index!");
+        format!("{}/app/{}", full_domain, idx)
     }
 }
 
