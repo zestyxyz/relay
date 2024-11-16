@@ -22,11 +22,10 @@
     <input id="adult" type="checkbox" onchange="filterAdultApps()">Show apps with 18+ content?</input>
     {% endif %}
   </div>
-  <hr>
-  <label for="search">Search</label>
-  <input id="search" type="text" oninput="searchApps()">
   <div class="list-container">
   {% for appgroup in apps %}
+    <!-- TODO: This check on the appgroup and app can probably be consolidated -->
+    {% if (DEBUG or ('localhost' not in appgroup[0].url)) and (SHOW_ADULT_CONTENT or not appgroup[0].adult) and appgroup[0].visible %}
     <details class="app-container">
       <summary>{{ appgroup[0].name }}</summary>
       {% for app in appgroup %}
@@ -40,12 +39,11 @@
         {% endif %}
       {% endfor %}
     </details>
+    {% endif %}
   {% endfor %}
   </div>
   <script>
     const appsList = document.querySelector('.list-container');
-    /** @type {HTMLInputElement} */
-    const search = document.querySelector('#search');
     /** @type {HTMLInputElement} */
     const adult = document.querySelector('#adult');
 
@@ -62,7 +60,6 @@
             app.removeAttribute('data-url-filtered');
         }
       }
-      searchApps();
       filterAdultApps();
     }
 
@@ -75,24 +72,6 @@
           app.style.display = adult.checked ? 'block' : 'none';
         }
       }
-    }
-
-    /**
-     * Very basic filter search that checks for the term in the app card HTML
-     */
-    function searchApps() {
-      for (const app of appsList.children) {
-        if (app.hasAttribute('data-url-filtered')) continue;
-
-        if (app.innerHTML.toLowerCase().includes(search.value)) {
-          app.style.display = 'block';
-        } else {
-          console.log(app.innerHTML);
-          app.style.display = 'none';
-        }
-      }
-
-      filterAdultApps();
     }
 
     // Filter out
