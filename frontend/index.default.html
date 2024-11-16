@@ -20,7 +20,7 @@
   <h1>Spatial Internet Graph Relay</h1>
   <p>This is a test deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
   <p>This relay currently knows of {{ apps_count }} app(s). Here are a few of them:</p>
-  <div class="main-carousel" data-flickity='{ "wrapAround": true }'>
+  <div class="main-carousel" data-flickity='{ "wrapAround": true, "imagesLoaded": true }'>
     {% for app in apps %}
     <div class="carousel-cell">
       <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
