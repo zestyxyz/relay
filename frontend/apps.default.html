@@ -22,13 +22,18 @@
   </details>
   <hr>
   <div class="list-container">
+  {% macro should_show(element) %}
+    {% if (DEBUG or ('localhost' not in element.url)) and (SHOW_ADULT_CONTENT or not element.adult) and element.visible %}
+      {{ element }}
+    {% endif %}
+  {% endmacro should_show %}
+
   {% for appgroup in apps %}
-    <!-- TODO: This check on the appgroup and app can probably be consolidated -->
-    {% if (DEBUG or ('localhost' not in appgroup[0].url)) and (SHOW_ADULT_CONTENT or not appgroup[0].adult) and appgroup[0].visible %}
+    {% if self::should_show(element=appgroup[0]) %}
     <details class="app-container">
       <summary>{{ appgroup[0].name }}</summary>
       {% for app in appgroup %}
-        {% if (DEBUG or ('localhost' not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
+        {% if self::should_show(element=app) %}
         <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}">
 
           <a href="{{ app_pages[app.url] }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
@@ -42,38 +47,25 @@
   {% endfor %}
   </div>
   <script>
-    const appsList = document.querySelector('.list-container');
     /** @type {HTMLInputElement} */
     const adult = document.querySelector('#adult');
 
-    function filterApps(checkbox) {
-      const checked = checkbox.checked;
-      const hostURL = checkbox.getAttribute('data-url');
-      for (const app of appsList.children) {
-        const url = app.getAttribute('data-url');
-        if (url.includes(hostURL) && !url.includes(`.${hostURL}`)) {
-          app.style.display = checked ? 'block' : 'none';
-          if (!checked)
-            app.setAttribute('data-url-filtered', "");
-          else
-            app.removeAttribute('data-url-filtered');
-        }
-      }
-      filterAdultApps();
-    }
-
     function filterAdultApps() {
-      for (const app of appsList.children) {
-        if (app.hasAttribute('data-url-filtered')) continue;
-
+      const cardsList = document.querySelectorAll("details[data-adult]")
+      const appsList = document.querySelectorAll("div[data-adult]")
+      for (const app of appsList) {
         const isAdult = app.getAttribute('data-adult');
         if (isAdult == "true") {
           app.style.display = adult.checked ? 'block' : 'none';
+          console.log(app.parentNode.childElementCount);
+          if (app.parentNode.childElementCount == 2) {
+            app.parentElement.style.display = app.style.display;
+          }
         }
       }
     }
 
-    // Filter out
+    // Filter out apps initially on page load
     filterAdultApps();
   </script>
 </body>
