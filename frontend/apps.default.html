@@ -16,12 +16,11 @@
     </nav>
   </header>
   <h1>Apps List</h1>
-  <div>
-    <br>
-    {% if SHOW_ADULT_CONTENT %}
+  <details open>
+    <summary style="background-color: dimgrey;">Filter Results</summary>
     <input id="adult" type="checkbox" onchange="filterAdultApps()">Show apps with 18+ content?</input>
-    {% endif %}
-  </div>
+  </details>
+  <hr>
   <div class="list-container">
   {% for appgroup in apps %}
     <!-- TODO: This check on the appgroup and app can probably be consolidated -->
