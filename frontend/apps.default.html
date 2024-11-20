@@ -16,31 +16,32 @@
     </nav>
   </header>
   <h1>Apps List</h1>
-  <details open>
+  <details>
     <summary style="background-color: dimgrey;">Filter Results</summary>
     <input id="adult" type="checkbox" onchange="filterAdultApps()">Show apps with 18+ content?</input>
   </details>
   <hr>
   <div class="list-container">
   {% macro show_app(app) %}
-    {% if (DEBUG or ('localhost' not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
+    {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
       <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}">
-
         <a href="{{ app_pages[app.url] }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
         <p>{{ app.description }}</p>
         <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
       </div>
     {% endif %}
   {% endmacro show_app %}
+
   {% macro show_group(appgroup) %}
-    {% set_global show = true %}
+    {% set_global has_visible = false %}
     {% for app in appgroup %}
-      {% if (not DEBUG and ('localhost' in app.url)) or (not SHOW_ADULT_CONTENT and app.adult) or not app.visible %}
-        {% set_global show = false %}
+      {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
+        {% set_global has_visible = true %}
         {% break %}
       {% endif %}
     {% endfor %}
-    {% if show %}
+    
+    {% if has_visible %}
       <details class="app-container">
         <summary>{{ appgroup[0].name }}</summary>
         {% for app in appgroup %}
