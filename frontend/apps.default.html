@@ -22,28 +22,36 @@
   </details>
   <hr>
   <div class="list-container">
-  {% macro should_show(element) %}
-    {% if (DEBUG or ('localhost' not in element.url)) and (SHOW_ADULT_CONTENT or not element.adult) and element.visible %}
-      {{ element }}
+  {% macro show_app(app) %}
+    {% if (DEBUG or ('localhost' not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
+      <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}">
+
+        <a href="{{ app_pages[app.url] }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
+        <p>{{ app.description }}</p>
+        <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
+      </div>
     {% endif %}
-  {% endmacro should_show %}
+  {% endmacro show_app %}
+  {% macro show_group(appgroup) %}
+    {% set_global show = true %}
+    {% for app in appgroup %}
+      {% if (not DEBUG and ('localhost' in app.url)) or (not SHOW_ADULT_CONTENT and app.adult) or not app.visible %}
+        {% set_global show = false %}
+        {% break %}
+      {% endif %}
+    {% endfor %}
+    {% if show %}
+      <details class="app-container">
+        <summary>{{ appgroup[0].name }}</summary>
+        {% for app in appgroup %}
+          {{ self::show_app(app=app) }}
+        {% endfor %}
+      </details>
+    {% endif %}
+  {% endmacro show_group %}
 
   {% for appgroup in apps %}
-    {% if self::should_show(element=appgroup[0]) %}
-    <details class="app-container">
-      <summary>{{ appgroup[0].name }}</summary>
-      {% for app in appgroup %}
-        {% if self::should_show(element=app) %}
-        <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}">
-
-          <a href="{{ app_pages[app.url] }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
-          <p>{{ app.description }}</p>
-          <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
-        </div>
-        {% endif %}
-      {% endfor %}
-    </details>
-    {% endif %}
+    {{ self::show_group(appgroup=appgroup) }}
   {% endfor %}
   </div>
   <script>
@@ -57,8 +65,7 @@
         const isAdult = app.getAttribute('data-adult');
         if (isAdult == "true") {
           app.style.display = adult.checked ? 'block' : 'none';
-          console.log(app.parentNode.childElementCount);
-          if (app.parentNode.childElementCount == 2) {
+          if (app.parentNode.childElementCount == 2) { // 2 to account for <summary> tag
             app.parentElement.style.display = app.style.display;
           }
         }
