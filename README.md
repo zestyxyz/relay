@@ -24,6 +24,11 @@ This is the current prototype for the DSIG relay server, written in Rust.
 
 ## Development
 
+To use the dsig CLI tool:
+```sh
+$ cargo run --bin cli
+```
+
 If you need to reset the state of the database:
 
 ### Docker
