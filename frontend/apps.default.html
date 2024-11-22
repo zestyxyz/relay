@@ -6,6 +6,7 @@
   <title>Apps List</title>
   <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
   <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://kit.fontawesome.com/0df6185928.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <header>
@@ -25,6 +26,21 @@
   {% macro show_app(app) %}
     {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
       <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}">
+        {% if 'action' in app.tags %}
+          <i class="fa-solid fa-hand-fist" aria-hidden="true" title="Action"></i>
+        {% endif %}
+        {% if 'horror' in app.tags %}
+          <i class="fa-solid fa-ghost" aria-hidden="true" title="Horror"></i>
+        {% endif %}
+        {% if 'rpg' in app.tags %}
+          <i class="fa-solid fa-dice-d20" aria-hidden="true" title="RPG"></i>
+        {% endif %}
+        {% if ('music' in app.tags) or ('rhythm' in app.tags) %}
+          <i class="fa-solid fa-music" aria-hidden="true" title="Music/Rhythm"></i>
+        {% endif %}
+        {% if ('puzzle' in app.tags) or ('strategy' in app.tags) %}
+          <i class="fa-solid fa-puzzle-piece" aria-hidden="true" title="Puzzle/Strategy"></i>
+        {% endif %}
         <a href="{{ app_pages[app.url] }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
         <p>{{ app.description }}</p>
         <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
