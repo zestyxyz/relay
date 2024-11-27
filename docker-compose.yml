@@ -11,6 +11,8 @@ services:
       - postgres
     volumes:
       - .:/app
+      - build:/app/target
+      - cargo:/usr/local/cargo
     working_dir: /app
     command: bash init.sh
 
@@ -29,3 +31,5 @@ services:
 
 volumes:
   postgres-data:
+  build:
+  cargo:
