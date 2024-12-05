@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spatial Internet Graph Relay</title>
   <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
-  <link rel="stylesheet" href="https://unpkg.com/flickity@2/dist/flickity.min.css">
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-  <script src="https://unpkg.com/flickity@2/dist/flickity.pkgd.min.js"></script>
 </head>
 <body>
   <header>
@@ -19,16 +17,17 @@
     </nav>
   </header>
   <h1>Spatial Internet Graph Relay</h1>
-  <p>This is a test deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
+  <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
   <p>This relay currently knows of {{ apps_count }} app(s). Here are a few of them:</p>
-  <div class="main-carousel" data-flickity='{ "wrapAround": true, "imagesLoaded": true }'>
+  <div class="frontpage-tiles">
     {% for app in apps %}
-    <div class="carousel-cell">
-      <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
-      <p>{{ app.description }}</p>
+    <div class="frontpage-tile-cell">
       {% if app.image != "#" %}
-      <img width="100%" height="auto" src="{{app.image}}">
+      <img src="{{app.image}}">
+      {% else %}
+      <img src="/static/images/noimage.png">
       {% endif %}
+      <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
     </div>
     {% endfor %}
   </div>
