@@ -8,6 +8,7 @@ use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use activitypub_federation::http_signatures::generate_actor_keypair;
 use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
+use actix_web::middleware::NormalizePath;
 use dotenvy::dotenv;
 use sqlx::types::chrono::Utc;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
@@ -115,6 +116,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let _ = HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
+            .wrap(NormalizePath::trim())
             .wrap(FederationMiddleware::new(config.clone()))
             .wrap(cors)
             .service(index)
