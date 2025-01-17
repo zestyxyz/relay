@@ -50,6 +50,14 @@ pub async fn get_all_apps(data: &Data<AppState>) -> Result<Vec<DbApp>, Error> {
     Ok(apps)
 }
 
+pub async fn get_all_apps_in_random(data: &Data<AppState>) -> Result<Vec<DbApp>, Error> {
+    let db:&sqlx::Pool<sqlx::Postgres> = &data.db;
+    let apps:Vec<DbApp> = sqlx::query_as::<_, DbApp>("SELECT * FROM apps ORDER BY RANDOM()")
+        .fetch_all(db)
+        .await?;
+    Ok(apps)
+}
+
 pub async fn get_apps_count(data: &Data<AppState>) -> Result<i64, Error> {
     let db = &data.db;
     let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM apps")

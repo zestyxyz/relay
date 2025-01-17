@@ -24,7 +24,7 @@ use super::activities::{Create, Follow, Update};
 use super::actors::{DbRelay, Relay};
 use super::apps::{APImage, App, DbApp};
 use super::db::{
-    create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
+    create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps, get_all_apps_in_random,
     get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
     get_relay_followers, get_system_user, toggle_app_visibility, update_app,
 };
@@ -74,7 +74,7 @@ fn server_fail_screen(e: super::error::Error) -> web::Html {
 #[get("/")]
 async fn index(data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "index");
-    match get_all_apps(&data).await {
+    match get_all_apps_in_random(&data).await {
         Ok(mut apps) => {
             // Filter apps for display in the front carousel
             if !data.debug {
