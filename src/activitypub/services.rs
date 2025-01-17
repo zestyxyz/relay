@@ -161,15 +161,6 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     // Otherwise, update the DB and send the relevant activities
     match get_app_by_url(&data, &url).await {
         Ok(Some(app)) => {
-            // Check if no fields have changed, in which case exit early
-            if app.name == name
-                && app.description == description
-                && app.active == active
-                && app.image == image
-            {
-                return HttpResponse::NotModified().finish();
-            }
-
             // Set up references to the latest values for each field
             let app_name = &get_latest_value(app.name.clone(), name.clone());
             let app_description = &get_latest_value(app.description.clone(), description.clone());
@@ -199,6 +190,17 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
             } else {
                 app_image.clone()
             };
+
+            // Check if no fields have changed, in which case exit early
+            if app_name == &app.name
+                && app_description == &app.description
+                && app_active == app.active
+                && image == app.image
+                && app_adult == app.adult
+                && app_tags == app.tags
+            {
+                return HttpResponse::NotModified().finish();
+            }
 
             match update_app(
                 &data,
@@ -627,6 +629,13 @@ fn get_template_path(data: &Data<AppState>, page: &str) -> String {
 }
 
 fn create_local_image(ap_id: &str, protocol: &str, relay_domain: &str, app_image: &str) -> String {
+    let count = ap_id.split("/").last().unwrap();
+    let filepath = format!("images/{}.png", count);
+    let image_url = format!("{}{}/{}", protocol, relay_domain, filepath);
+    if std::fs::exists(&filepath).unwrap() {
+        // Image already exists, return image URL
+        return format!("{}{}/{}", protocol, relay_domain, filepath);
+    }
     let dataurl = match DataUrl::parse(app_image) {
         Ok(dataurl) => dataurl,
         Err(e) => {
@@ -634,9 +643,7 @@ fn create_local_image(ap_id: &str, protocol: &str, relay_domain: &str, app_image
             return "".to_string();
         }
     };
-    let count = ap_id.split("/").last().unwrap();
-    let image_url = format!("{}{}/images/{}.png", protocol, relay_domain, count);
-    let _ = std::fs::write(&image_url, dataurl.get_data());
+    let _ = std::fs::write(&filepath, dataurl.get_data());
     image_url
 }
 
