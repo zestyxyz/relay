@@ -629,12 +629,15 @@ fn get_template_path(data: &Data<AppState>, page: &str) -> String {
 }
 
 fn create_local_image(ap_id: &str, protocol: &str, relay_domain: &str, app_image: &str) -> String {
+    // Get app ID by splitting off from Activitypub ID
     let count = ap_id.split("/").last().unwrap();
+    // Construct filepath to images folder
     let filepath = format!("images/{}.png", count);
+    // Construct external URL
     let image_url = format!("{}{}/{}", protocol, relay_domain, filepath);
     if std::fs::exists(&filepath).unwrap() {
         // Image already exists, return image URL
-        return format!("{}{}/{}", protocol, relay_domain, filepath);
+        return image_url;
     }
     let dataurl = match DataUrl::parse(app_image) {
         Ok(dataurl) => dataurl,
