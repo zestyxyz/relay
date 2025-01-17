@@ -17,15 +17,17 @@
     </nav>
   </header>
   <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
-  <div class="frontpage-tiles">
-    {% for app in apps %}
-    <div class="frontpage-tile-cell" onclick="window.open('{{ app.url }}', '_blank', 'noopener,noreferrer')">
+  <div class="tiles">
+    {% for app in shuffled_apps %}
+    <div class="tile" onclick="window.open('{{ app.url }}', '_blank', 'noopener,noreferrer')">
       {% if app.image != "#" %}
       <img src="{{app.image}}">
       {% else %}
       <img src="/static/images/noimage.png">
       {% endif %}
-      <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
+      <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">
+        <button type="button">Visit {{ app.name }}</button>
+      </a>
     </div>
     {% endfor %}
   </div>

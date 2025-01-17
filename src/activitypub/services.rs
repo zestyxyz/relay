@@ -2,6 +2,10 @@ use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 
+extern crate rand;
+use rand::thread_rng;
+use rand::seq::SliceRandom;
+
 use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
@@ -24,7 +28,7 @@ use super::activities::{Create, Follow, Update};
 use super::actors::{DbRelay, Relay};
 use super::apps::{APImage, App, DbApp};
 use super::db::{
-    create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
+    create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps_in_alphabetical,
     get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
     get_relay_followers, get_system_user, toggle_app_visibility, update_app,
 };
@@ -74,7 +78,7 @@ fn server_fail_screen(e: super::error::Error) -> web::Html {
 #[get("/")]
 async fn index(data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "index");
-    match get_all_apps(&data).await {
+    match get_all_apps_in_alphabetical(&data).await {
         Ok(mut apps) => {
             // Filter apps for display in the front carousel
             if !data.debug {
@@ -88,12 +92,19 @@ async fn index(data: Data<AppState>) -> impl Responder {
                     .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
                 unique_urls.insert(url.host_str().unwrap().to_string())
             });
-            apps.truncate(20);
+
+            let mut shuffled_apps = apps.to_vec();
+            shuffled_apps.shuffle(&mut thread_rng());
+
+            // Show Top 20
+            shuffled_apps.truncate(20);
 
             // Render
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &total_apps_count);
             ctx.insert("apps", &apps);
+            ctx.insert("shuffled_apps", &shuffled_apps);
+
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -345,7 +356,7 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
 async fn get_apps(data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "apps");
     let error_path = get_template_path(&data, "error");
-    match get_all_apps(&data).await {
+    match get_all_apps_in_alphabetical(&data).await {
         Ok(apps) => {
             // TODO: See if calculating this can be lifted off a hot path
             let mut app_groups: HashMap<String, Vec<DbApp>> = HashMap::new();

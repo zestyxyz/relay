@@ -1,3 +1,5 @@
 /target
 .env
 /images/*.png
+.DS_Store
+*.sql
