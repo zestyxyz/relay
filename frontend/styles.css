@@ -31,29 +31,7 @@ i {
   grid-gap: 20px;
 }
 
-.main-carousel {
-  width: 100%;
-}
-
-@media (prefers-color-scheme: dark) {
-  .card, .carousel-cell, .frontpage-tile-cell {
-    border: 4px solid white;
-  }
-  .frontpage-tile-cell:hover {
-    background-color: #333333;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  .card, .carousel-cell, .frontpage-tile-cell {
-    border: 4px solid black;
-  }
-  .frontpage-tile-cell:hover {
-    background-color: #dddddd;
-  }
-}
-
-.card, .carousel-cell {
+.card {
   border-radius: 16px;
   padding: 2em;
   text-overflow: ellipsis;
@@ -61,45 +39,81 @@ i {
   margin-bottom: 20px;
 }
 
-.carousel-cell {
-  height: fit-content;
-}
-
-.carousel-cell p {
-  padding: 0 2em;
-}
-
 [data-url-filtered] {
   display: none;
 }
 
-.frontpage-tiles {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: stretch;
-  justify-items: center;
+/* TILES */
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
 }
 
-.frontpage-tile-cell {
-  cursor: pointer;
+.tile {
   display: flex;
   flex-direction: column;
+  cursor: pointer;
+  width: 300px;
+  margin: 16px;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   justify-content: center;
   align-items: center;
-  border-radius: 16px;
-  padding: 2.2em;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  margin: 16px;
-  height: 300px;
-  width: 300px;
 }
 
-.frontpage-tile-cell > a {
+.tile > a {
   margin-top: 8px;
 }
 
-.frontpage-tile-cell > img {
+.tile > img {
   width: 300px;
   height: auto;
+}
+
+/* MOBILE */
+
+/* For small screens (less than 768px) */
+@media (max-width: 768px) {
+  .tile {
+    width: 300px;
+    margin: 16px;
+  }
+}
+
+/* For medium screens (768-1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tile {
+    width: 300px;
+    margin: 16px;
+  }
+}
+
+/* For large screens (1024px and above) */
+@media (min-width: 1024px) {
+  .tiles {
+    justify-content: space-around; /* change to space-around for more even spacing */
+  }
+}
+
+/* DARK MODE */
+
+@media (prefers-color-scheme: dark) {
+  .card, .tile {
+    border: 4px solid white;
+  }
+  .tile:hover {
+    background-color: #333333;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .card, .tile {
+    border: 4px solid black;
+  }
+  .tile:hover {
+    background-color: #dddddd;
+  }
 }

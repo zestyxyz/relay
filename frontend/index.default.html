@@ -17,9 +17,9 @@
     </nav>
   </header>
   <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
-  <div class="frontpage-tiles">
+  <div class="tiles">
     {% for app in apps %}
-    <div class="frontpage-tile-cell" onclick="window.open('{{ app.url }}', '_blank', 'noopener,noreferrer')">
+    <div class="tile" onclick="window.open('{{ app.url }}', '_blank', 'noopener,noreferrer')">
       {% if app.image != "#" %}
       <img src="{{app.image}}">
       {% else %}
