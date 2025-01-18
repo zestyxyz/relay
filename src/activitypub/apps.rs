@@ -76,7 +76,11 @@ impl DbApp {
         let full_domain = format!("{}{}", protocol, domain);
 
         let ap_id = self.ap_id.clone().into_inner();
-        let idx = ap_id.as_str().split("/").last().expect("This app should have an index!");
+        let idx = ap_id
+            .as_str()
+            .split("/")
+            .last()
+            .expect("This app should have an index!");
         format!("{}/app/{}", full_domain, idx)
     }
 }

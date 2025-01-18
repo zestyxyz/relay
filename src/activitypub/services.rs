@@ -3,8 +3,8 @@ use std::env;
 use std::str::FromStr;
 
 extern crate rand;
-use rand::thread_rng;
 use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::Data;
@@ -28,9 +28,9 @@ use super::activities::{Create, Follow, Update};
 use super::actors::{DbRelay, Relay};
 use super::apps::{APImage, App, DbApp};
 use super::db::{
-    create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps_in_alphabetical,
-    get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
-    get_relay_followers, get_system_user, toggle_app_visibility, update_app,
+    create_activity, create_app, get_activities_count, get_activity_by_id,
+    get_all_apps_in_alphabetical, get_all_relays, get_app_by_id, get_app_by_url, get_apps_count,
+    get_relay_by_id, get_relay_followers, get_system_user, toggle_app_visibility, update_app,
 };
 use crate::AppState;
 
@@ -524,7 +524,13 @@ async fn request_login_token(
 #[get("/images/{id}")]
 async fn get_image(request: HttpRequest, _data: Data<AppState>) -> impl Responder {
     let image_url = format!("images/{}", request.match_info().get("id").unwrap());
-    let image = std::fs::read(&image_url).expect("Failed to read image");
+    let image = match std::fs::read(&image_url) {
+        Ok(image_bytes) => image_bytes,
+        Err(_) => {
+            println!("Failed to load image at: {}", image_url);
+            std::fs::read("frontend/images/noimage.png").expect("Failed to load placeholder image")
+        }
+    };
     let mime = match image_url.split('.').last() {
         Some("png") => "image/png",
         Some("jpg") | Some("jpeg") => "image/jpeg",
