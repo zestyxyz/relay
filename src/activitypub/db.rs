@@ -42,9 +42,9 @@ pub async fn get_app_by_url(data: &Data<AppState>, url: &str) -> Result<Option<D
     Ok(app)
 }
 
-pub async fn get_all_apps_in_alphabetical(data: &Data<AppState>) -> Result<Vec<DbApp>, Error> {
+pub async fn get_all_apps(data: &Data<AppState>) -> Result<Vec<DbApp>, Error> {
     let db = &data.db;
-    let apps = sqlx::query_as::<_, DbApp>("SELECT * FROM apps ORDER BY name ASC")
+    let apps = sqlx::query_as::<_, DbApp>("SELECT * FROM apps ORDER BY id ASC")
         .fetch_all(db)
         .await?;
     Ok(apps)
