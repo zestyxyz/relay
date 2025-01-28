@@ -22,7 +22,7 @@ header {
   height: fit-content;
 }
 
-i {
+i.genre {
   float: right;
 }
 

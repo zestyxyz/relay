@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <script src="https://kit.fontawesome.com/0df6185928.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <header>
@@ -25,6 +26,7 @@
       {% else %}
       <img src="/static/images/noimage.png">
       {% endif %}
+      <p><i class="fa-solid fa-users" aria-hidden="true" title="Users"></i> {{ live_counts[loop.index0] }}</p>
       <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">
         <button type="button">Visit {{ app.name }}</button>
       </a>

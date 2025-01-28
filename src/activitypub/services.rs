@@ -106,11 +106,30 @@ async fn index(data: Data<AppState>) -> impl Responder {
             let mut shuffled_apps = apps.to_vec();
             shuffled_apps.shuffle(&mut thread_rng());
 
+            // Get live counts
+            let mut live_counts = vec![];
+            prune_old_sessions(&data);
+            let sessions = match data.sessions.read() {
+                Ok(sessions) => sessions,
+                Err(poisoned) => {
+                    println!("Warning: sessions lock was poisoned. Attempting recovery...");
+                    poisoned.into_inner()
+                }
+            };
+            for app in shuffled_apps.iter_mut() {
+                let live_count: usize = sessions
+                    .get(&app.url)
+                    .map(|sessions| sessions.len())
+                    .unwrap_or(0);
+                live_counts.push(live_count);
+            }
+
             // Render
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &total_apps_count);
             ctx.insert("apps", &apps);
             ctx.insert("shuffled_apps", &shuffled_apps);
+            ctx.insert("live_counts", &live_counts);
 
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
