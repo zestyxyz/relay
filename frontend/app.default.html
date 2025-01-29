@@ -30,6 +30,9 @@
   {% endif %}
   <p>{{ description }}</p>
   <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>
-  <p>Currently active users: {{ live_count }}</p>
+  <div class="live-count-container">
+    <div class="live-dot"></div>
+    <p>{{ live_count }} here now</p>
+  </div>
 </body>
 </html>
