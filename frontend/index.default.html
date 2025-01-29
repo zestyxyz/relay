@@ -25,6 +25,10 @@
       {% else %}
       <img src="/static/images/noimage.png">
       {% endif %}
+      <div class="live-count-container">
+        <div class="live-dot"></div>
+        <p>{{ live_counts[loop.index0] }} here now</p>
+      </div>
       <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">
         <button type="button">Visit {{ app.name }}</button>
       </a>

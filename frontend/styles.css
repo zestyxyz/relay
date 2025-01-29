@@ -22,7 +22,7 @@ header {
   height: fit-content;
 }
 
-i {
+i.genre {
   float: right;
 }
 
@@ -125,4 +125,28 @@ i {
   .tile:hover {
     background-color: #dddddd;
   }
+}
+
+/* Live count styles */
+.live-count-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.live-dot {
+  width: 20px;
+  height: 20px;
+  background-color: red;
+  border-radius: 50%;
+  display: inline;
+  animation: blink 2s infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
 }

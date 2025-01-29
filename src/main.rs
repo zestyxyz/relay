@@ -2,6 +2,7 @@ mod activitypub;
 
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 use std::{env, fs};
 
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
@@ -17,8 +18,14 @@ use tera::Tera;
 use crate::activitypub::services::{
     admin_follow, admin_page, admin_toggle_visible, get_activity, get_app, get_apps, get_beacon,
     get_image, get_relays, http_get_system_user, http_post_relay_inbox, index, login, new_beacon,
-    not_found, request_login_token, webfinger,
+    not_found, request_login_token, update_session_info, webfinger,
 };
+
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub struct SessionInfo {
+    session_id: String,
+    timestamp: i64,
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -27,6 +34,7 @@ pub struct AppState {
     debug: bool,
     show_adult_content: bool,
     is_custom_page: HashMap<String, bool>,
+    sessions: Arc<RwLock<HashMap<String, Vec<SessionInfo>>>>,
 }
 
 #[tokio::main]
@@ -99,6 +107,9 @@ async fn main() -> Result<(), anyhow::Error> {
         fs::exists("frontend/relays.html").unwrap(),
     );
 
+    // Create in-memory session store for app live counts
+    let sessions = Arc::new(RwLock::new(HashMap::<String, Vec<SessionInfo>>::new()));
+
     let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/frontend/**/*.html")).unwrap();
     let config = FederationConfig::builder()
         .domain(domain.clone())
@@ -108,6 +119,7 @@ async fn main() -> Result<(), anyhow::Error> {
             debug,
             show_adult_content,
             is_custom_page,
+            sessions,
         })
         .debug(debug)
         .build()
@@ -138,6 +150,7 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(admin_toggle_visible)
             .service(webfinger)
             .service(get_image)
+            .service(update_session_info)
             .service(actix_files::Files::new("/static", "frontend"))
             .default_service(web::route().to(not_found))
     })

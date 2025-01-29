@@ -28,11 +28,11 @@ use super::activities::{Create, Follow, Update};
 use super::actors::{DbRelay, Relay};
 use super::apps::{APImage, App, DbApp};
 use super::db::{
-    create_activity, create_app, get_activities_count, get_activity_by_id,
-    get_all_apps, get_all_relays, get_app_by_id, get_app_by_url, get_apps_count,
-    get_relay_by_id, get_relay_followers, get_system_user, toggle_app_visibility, update_app,
+    create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
+    get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
+    get_relay_followers, get_system_user, toggle_app_visibility, update_app,
 };
-use crate::AppState;
+use crate::{AppState, SessionInfo};
 
 #[derive(Deserialize)]
 pub struct BeaconPayload {
@@ -65,6 +65,13 @@ pub struct ToggleVisibilityPayload {
     app_id: i32,
 }
 
+#[derive(Deserialize)]
+pub struct SessionPayload {
+    session_id: String,
+    url: String,
+    timestamp: i64,
+}
+
 fn template_fail_screen(e: tera::Error) -> web::Html {
     println!("{}", e);
     web::Html::new("Failed to render to template!")
@@ -95,15 +102,34 @@ async fn index(data: Data<AppState>) -> impl Responder {
 
             // Show Top 20
             apps.truncate(20);
-            
+
             let mut shuffled_apps = apps.to_vec();
             shuffled_apps.shuffle(&mut thread_rng());
+
+            // Get live counts
+            let mut live_counts = vec![];
+            prune_old_sessions(&data);
+            let sessions = match data.sessions.read() {
+                Ok(sessions) => sessions,
+                Err(poisoned) => {
+                    println!("Warning: sessions lock was poisoned. Attempting recovery...");
+                    poisoned.into_inner()
+                }
+            };
+            for app in shuffled_apps.iter_mut() {
+                let live_count: usize = sessions
+                    .get(&app.url)
+                    .map(|sessions| sessions.len())
+                    .unwrap_or(0);
+                live_counts.push(live_count);
+            }
 
             // Render
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &total_apps_count);
             ctx.insert("apps", &apps);
             ctx.insert("shuffled_apps", &shuffled_apps);
+            ctx.insert("live_counts", &live_counts);
 
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
@@ -334,11 +360,24 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
     let error_path = get_template_path(&data, "error");
     match get_app_by_id(path.into_inner() + 1, &data).await {
         Ok(app) => {
+            prune_old_sessions(&data);
+            let sessions = match data.sessions.read() {
+                Ok(sessions) => sessions,
+                Err(poisoned) => {
+                    println!("Warning: sessions lock was poisoned. Attempting recovery...");
+                    poisoned.into_inner()
+                }
+            };
+            let live_count = sessions
+                .get(&app.url)
+                .map(|sessions| sessions.len())
+                .unwrap_or(0);
             let mut ctx = tera::Context::new();
             ctx.insert("name", &app.name);
             ctx.insert("description", &app.description);
             ctx.insert("url", &app.url);
             ctx.insert("image", &app.image);
+            ctx.insert("live_count", &live_count);
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -584,6 +623,43 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
     ))
 }
 
+#[post("/session")]
+async fn update_session_info(
+    _request: HttpRequest,
+    req_body: web::Json<SessionPayload>,
+    data: Data<AppState>,
+) -> HttpResponse {
+    let session_info = SessionInfo {
+        session_id: req_body.session_id.clone(),
+        timestamp: req_body.timestamp,
+    };
+    let mut sessions = match data.sessions.write() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            println!("Warning: sessions lock was poisoned. Attempting recovery...");
+            poisoned.into_inner()
+        }
+    };
+    match sessions.get_mut(&req_body.url) {
+        Some(vec) => {
+            match vec
+                .iter_mut()
+                .find(|info| info.session_id == req_body.session_id)
+            {
+                Some(session) => session.timestamp = req_body.timestamp,
+                None => vec.push(session_info),
+            }
+        }
+        None => {
+            let mut vec = Vec::new();
+            vec.push(session_info);
+            sessions.insert(req_body.url.clone(), vec);
+        }
+    }
+
+    HttpResponse::Ok().finish()
+}
+
 #[post("/admin/follow")]
 async fn admin_follow(
     request: HttpRequest,
@@ -673,4 +749,20 @@ fn get_latest_value<T: PartialEq>(original: T, incoming: T) -> T {
     } else {
         original
     }
+}
+
+fn prune_old_sessions(data: &Data<AppState>) {
+    let mut sessions = match data.sessions.write() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            println!("Warning: sessions lock was poisoned during pruning. Attempting recovery...");
+            poisoned.into_inner()
+        }
+    };
+    // Iterate through all sessions and remove any that are older than 5 seconds
+    sessions.values_mut().for_each(|url_sessions| {
+        url_sessions.retain(|session| {
+            (time::OffsetDateTime::now_utc().unix_timestamp() * 1000) - session.timestamp < 5000
+        })
+    });
 }
