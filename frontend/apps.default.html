@@ -42,9 +42,18 @@
         {% if ('puzzle' in app.tags) or ('strategy' in app.tags) %}
           <i class="genre fa-solid fa-puzzle-piece" aria-hidden="true" title="Puzzle/Strategy"></i>
         {% endif %}
-        <a href="{{ app_pages[app.url] }}" target="_blank" rel="noopener noreferrer">{{ app.name }}</a>
+        
+        <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">
+          <button type="button">Visit {{ app.name }}</button>
+        </a>
+        
+        <a href="{{ app_pages[app.url] }}" rel="noopener noreferrer">
+          <button type="button">Info</button>
+        </a>
+        
         <p>{{ app.description }}</p>
         <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
+
       </div>
     {% endif %}
   {% endmacro show_app %}

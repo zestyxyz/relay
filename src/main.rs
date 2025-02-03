@@ -111,6 +111,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let sessions = Arc::new(RwLock::new(HashMap::<String, Vec<SessionInfo>>::new()));
 
     let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/frontend/**/*.html")).unwrap();
+
     let config = FederationConfig::builder()
         .domain(domain.clone())
         .app_data(AppState {
