@@ -591,10 +591,16 @@ async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responde
             .append_header(("Location", "/login"))
             .finish();
     }
-    let mut ctx = tera::Context::new();
-    ctx.insert("message", "");
-    match data.tera.render(&template_path, &ctx) {
-        Ok(html) => HttpResponse::Ok().body(html),
+    match get_all_apps(&data).await {
+        Ok(mut apps) => {
+            let mut ctx = tera::Context::new();
+            ctx.insert("apps", &apps);
+
+            match data.tera.render(&template_path, &ctx) {
+                Ok(html) => HttpResponse::Ok().body(html),
+                Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+            }
+        }
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

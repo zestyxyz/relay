@@ -16,19 +16,26 @@
       <a href="/relays">List of Relays</a>
     </nav>
   </header>
+
   <h1>Admin</h1>
+
   <h2>Follow Relay</h2>
   <form action="/admin/follow" method="post">
     <label for="Follow">Relay URL</label>
     <input type="text" name="follow_url" id="follow_url">
     <input type="submit" value="Follow">
   </form>
-  <p>{{ message }}</p>
+
   <h2>Toggle App Visibility</h2>
   <form action="/admin/togglevisible" method="post">
     <label for="ToggleVisible">App ID</label>
     <input type="text" name="app_id" id="app_id">
     <input type="submit" value="ToggleVisible">
   </form>
+
+  {% for app in apps %}
+    <ul>{{ app.ap_id }} | {{ app.url }}</ul>
+  {% endfor %}
+
 </body>
 </html>
