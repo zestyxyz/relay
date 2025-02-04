@@ -148,6 +148,7 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
             HttpResponse::Ok()
                 .content_type(FEDERATION_CONTENT_TYPE)
                 .json(App::new(
+                    app.id,
                     app.ap_id,
                     String::new(),
                     vec![],
@@ -592,7 +593,7 @@ async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responde
             .finish();
     }
     match get_all_apps(&data).await {
-        Ok(mut apps) => {
+        Ok(apps) => {
             let mut ctx = tera::Context::new();
             ctx.insert("apps", &apps);
 
