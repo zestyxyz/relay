@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin</title>
+  <title>Relay Admin</title>
   <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css" >
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
@@ -19,23 +19,36 @@
 
   <h1>Admin</h1>
 
-  <h2>Follow Relay</h2>
-  <form action="/admin/follow" method="post">
-    <label for="Follow">Relay URL</label>
-    <input type="text" name="follow_url" id="follow_url">
-    <input type="submit" value="Follow">
-  </form>
+  {{ message }}
 
-  <h2>Toggle App Visibility</h2>
-  <form action="/admin/togglevisible" method="post">
-    <label for="ToggleVisible">App ID</label>
-    <input type="text" name="app_id" id="app_id">
-    <input type="submit" value="ToggleVisible">
-  </form>
+  <div class="admin-container">
+    <div class="admin-column">
+      <h2>Follow Relay</h2>
+      <form action="/admin/follow" method="post">
+        <label for="Follow">Relay URL</label>
+        <input type="text" name="follow_url" id="follow_url">
+        <input type="submit" value="Follow">
+      </form>
+    </div>
 
-  {% for app in apps %}
-    <ul>{{ app.ap_id }} | {{ app.url }}</ul>
-  {% endfor %}
+    <div class="admin-column">
+      <h2>Toggle App Visibility</h2>
+
+      <form action="/admin/togglevisible" method="post">
+        {% for app in apps %}
+        <ul>
+          <input type="checkbox"
+          checked="{{ app.visible }}"
+          id="app_id"
+          name="app_id"
+          onChange="this.form.submit()">
+          <label for="ToggleVisible">{{ app.id }}</label>
+          | {{ app.url }}
+        </ul>
+        {% endfor %}
+      </form>
+    </div>
+  </div>
 
 </body>
 </html>
