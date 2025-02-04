@@ -35,7 +35,7 @@ pub struct AppState {
     show_adult_content: bool,
     is_custom_page: HashMap<String, bool>,
     sessions: Arc<RwLock<HashMap<String, Vec<SessionInfo>>>>,
-    hide_no_images_frontpage: bool,
+    index_hide_apps_with_no_images: bool,
 }
 
 #[tokio::main]
@@ -50,8 +50,8 @@ async fn main() -> Result<(), anyhow::Error> {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let show_adult_content =
         env::var("SHOW_ADULT_CONTENT").unwrap_or("false".to_string()) == "true";
-    let hide_no_images_frontpage =
-        env::var("HIDE_NO_IMAGES_FRONTPAGE").unwrap_or("true".to_string()) == "true";
+    let index_hide_apps_with_no_images =
+        env::var("INDEX_HIDE_APPS_WITH_NO_IMAGES").unwrap_or("true".to_string()) == "true";
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
@@ -124,7 +124,7 @@ async fn main() -> Result<(), anyhow::Error> {
             show_adult_content,
             is_custom_page,
             sessions,
-            hide_no_images_frontpage,
+            index_hide_apps_with_no_images,
         })
         .debug(debug)
         .build()

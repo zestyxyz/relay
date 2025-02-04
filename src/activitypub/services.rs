@@ -91,7 +91,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
             }
-            if data.hide_no_images_frontpage {
+            if data.index_hide_apps_with_no_images {
                 apps.retain(|app| app.image != "#");
             }
             apps.retain(|app| app.visible);
