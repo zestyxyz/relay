@@ -17,6 +17,7 @@ use crate::AppState;
 /// The internal representation of App data
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct DbApp {
+    pub id: i32,
     pub ap_id: ObjectId<DbApp>,
     pub url: String,
     pub name: String,
@@ -32,6 +33,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
     fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
         let ap_id: &str = row.try_get("activitypub_id")?;
         Ok(Self {
+            id: row.try_get("id")?,
             ap_id: ObjectId::parse(ap_id).unwrap(),
             url: row.try_get("url")?,
             name: row.try_get("name")?,
@@ -47,6 +49,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
 
 impl DbApp {
     pub fn new(
+        id: i32,
         ap_id: ObjectId<DbApp>,
         url: String,
         name: String,
@@ -58,6 +61,7 @@ impl DbApp {
         visible: bool,
     ) -> Self {
         Self {
+            id,
             ap_id,
             url,
             name,
@@ -110,6 +114,7 @@ impl APImage {
 pub struct App {
     #[serde(rename = "type")]
     kind: PageType,
+    app_id: i32,
     id: ObjectId<DbApp>,
     pub(crate) attributed_to: String,
     #[serde(deserialize_with = "deserialize_one_or_many")]
@@ -126,6 +131,7 @@ pub struct App {
 
 impl App {
     pub fn new(
+        app_id: i32,
         id: ObjectId<DbApp>,
         attributed_to: String,
         to: Vec<String>,
@@ -137,6 +143,7 @@ impl App {
         tags: String,
     ) -> Self {
         Self {
+            app_id,
             kind: PageType::Page,
             id,
             attributed_to,
@@ -170,6 +177,7 @@ impl Object for DbApp {
 
     async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Error> {
         Ok(App {
+            app_id: self.id,
             id: self.ap_id,
             kind: PageType::Page,
             attributed_to: "".to_string(),
@@ -198,6 +206,7 @@ impl Object for DbApp {
     ) -> Result<Self, Self::Error> {
         let image = json.image.and_then(|i| Some(i.href));
         let app = DbApp {
+            id: json.app_id,
             ap_id: json.id,
             url: json.content,
             name: json.name,

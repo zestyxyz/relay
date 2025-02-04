@@ -151,6 +151,7 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
             HttpResponse::Ok()
                 .content_type(FEDERATION_CONTENT_TYPE)
                 .json(App::new(
+                    app.id,
                     app.ap_id,
                     String::new(),
                     vec![],
@@ -591,13 +592,18 @@ async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responde
     let cookie = request.cookie("relay-admin-token");
     if cookie.is_none() {
         return HttpResponse::TemporaryRedirect()
-            .append_header(("Location", "/login"))
-            .finish();
+        .append_header(("Location", "/login"))
+        .finish();
     }
-    let mut ctx = tera::Context::new();
-    ctx.insert("message", "");
-    match data.tera.render(&template_path, &ctx) {
-        Ok(html) => HttpResponse::Ok().body(html),
+    match get_all_apps(&data).await {
+        Ok(apps) => {
+            let mut ctx = tera::Context::new();
+            ctx.insert("apps", &apps);
+            match data.tera.render(&template_path, &ctx) {
+                Ok(html) => HttpResponse::Ok().body(html),
+                Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+            }
+        }
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
@@ -699,20 +705,25 @@ async fn admin_toggle_visible(
     if cookie.is_none() {
         return HttpResponse::InternalServerError().body("Authorization error occurred.");
     }
-    match toggle_app_visibility(req_body.app_id + 1, &data).await {
+    match toggle_app_visibility(req_body.app_id, &data).await {
         Ok(_) => {
             let mut ctx = tera::Context::new();
-            ctx.insert("message", "Visiblity toggled!");
             let template_path = get_template_path(&data, "admin");
-            match data.tera.render(&template_path, &ctx) {
-                Ok(html) => HttpResponse::Ok().body(html),
-                Err(e) => {
-                    println!("{}", e);
-                    return HttpResponse::InternalServerError().body(e.to_string());
+            match get_all_apps(&data).await {
+                Ok(apps) => {
+                    let mut ctx = tera::Context::new();
+                    ctx.insert("apps", &apps);
+                    match data.tera.render(&template_path, &ctx) {
+                        Ok(html) => HttpResponse::Ok().body(html),
+                        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                    }
                 }
+                Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
         }
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        Err(e) => {
+            HttpResponse::InternalServerError().body(e.to_string())
+        },
     }
 }
 

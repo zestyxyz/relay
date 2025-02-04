@@ -26,6 +26,17 @@ i.genre {
   float: right;
 }
 
+/* ADMIN */
+
+.admin-column {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 100%;
+  flex: 1;
+}
+
+/* APPS */
+
 .app-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
