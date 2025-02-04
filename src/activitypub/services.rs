@@ -592,12 +592,10 @@ async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responde
         .append_header(("Location", "/login"))
         .finish();
     }
-    let mut ctx = tera::Context::new();
-    ctx.insert("message", "");
     match get_all_apps(&data).await {
         Ok(apps) => {
+            let mut ctx = tera::Context::new();
             ctx.insert("apps", &apps);
-
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => HttpResponse::Ok().body(html),
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
@@ -707,14 +705,17 @@ async fn admin_toggle_visible(
     match toggle_app_visibility(req_body.app_id, &data).await {
         Ok(_) => {
             let mut ctx = tera::Context::new();
-            ctx.insert("message", "Visiblity toggled!");
             let template_path = get_template_path(&data, "admin");
-            match data.tera.render(&template_path, &ctx) {
-                Ok(html) => HttpResponse::Ok().body(html),
-                Err(e) => {
-                    println!("{}, {}", e, ctx.into_json());
-                    return HttpResponse::InternalServerError().body(e.to_string());
+            match get_all_apps(&data).await {
+                Ok(apps) => {
+                    let mut ctx = tera::Context::new();
+                    ctx.insert("apps", &apps);
+                    match data.tera.render(&template_path, &ctx) {
+                        Ok(html) => HttpResponse::Ok().body(html),
+                        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                    }
                 }
+                Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
         }
         Err(e) => {

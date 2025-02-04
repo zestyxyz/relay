@@ -19,8 +19,6 @@
 
   <h1>Admin</h1>
 
-  {{ message }}
-
   <div class="admin-container">
     <div class="admin-column">
       <h2>Follow Relay</h2>
@@ -34,19 +32,29 @@
     <div class="admin-column">
       <h2>Toggle App Visibility</h2>
 
-      <form action="/admin/togglevisible" method="post">
-        {% for app in apps %}
-        <ul>
-          <input type="checkbox"
-          checked="{{ app.visible }}"
-          id="app_id"
-          name="app_id"
-          onChange="this.form.submit()">
-          <label for="ToggleVisible">{{ app.id }}</label>
-          | {{ app.url }}
-        </ul>
-        {% endfor %}
-      </form>
+      {% for app in apps %}
+      <ul>
+        <form action="/admin/togglevisible" method="post">
+          {% if app.visible %}
+            <button type="submit"
+              name="app_id"
+              value="{{ app.id }}"
+              onclick="this.form.submit()">
+              Hide
+            </button>
+            {{ app.id }} | {{ app.url }}
+          {% else %}
+          <button type="submit"
+              name="app_id"
+              value="{{ app.id }}"
+              onclick="this.form.submit()">
+              Show
+            </button>
+            {{ app.id }} | {{ app.url }}
+          {% endif %}
+        </form>
+      </ul>
+      {% endfor %}
     </div>
   </div>
 
