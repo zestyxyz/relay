@@ -91,6 +91,9 @@ async fn index(data: Data<AppState>) -> impl Responder {
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
             }
+            if data.hide_no_images_frontpage {
+                apps.retain(|app| app.image != "#");
+            }
             apps.retain(|app| app.visible);
             let total_apps_count = apps.len();
             let mut unique_urls = HashSet::new();
