@@ -89,6 +89,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
             }
+            let total_apps_count = apps.len();
             if data.index_hide_apps_with_no_images {
                 apps.retain(|app| app.image != "#");
             }
@@ -100,7 +101,6 @@ async fn index(data: Data<AppState>) -> impl Responder {
             unique_urls.insert(url.host_str().unwrap().to_string())
             });
 
-            let total_apps_count = apps.len();
 
             // Get live counts
             let mut live_counts = vec![];
@@ -126,7 +126,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
                 let count = live_counts[i % live_counts.len()];
                 app_to_live_count.push((app, count));
             }
-            app_to_live_count.sort_by(|a, b| a.1.cmp(&b.1));
+            app_to_live_count.sort_by(|a, b| b.1.cmp(&a.1));
 
             // Show Top 25
             let top_n = 25;
@@ -134,9 +134,6 @@ async fn index(data: Data<AppState>) -> impl Responder {
 
             let apps_to_display: Vec<DbApp> = app_to_live_count.clone().into_iter().map(|(v, _) | v).collect();
             let live_counts_to_display: Vec<usize> = app_to_live_count.into_iter().map(|(_, v) | v).collect();
-
-            // println!("{:?}", apps_to_display);
-            // println!("{:?}", live_counts_to_display);
 
             // Render
             let mut ctx = tera::Context::new();
