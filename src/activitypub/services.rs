@@ -707,7 +707,6 @@ async fn admin_toggle_visible(
     }
     match toggle_app_visibility(req_body.app_id, &data).await {
         Ok(_) => {
-            let mut ctx = tera::Context::new();
             let template_path = get_template_path(&data, "admin");
             match get_all_apps(&data).await {
                 Ok(apps) => {
