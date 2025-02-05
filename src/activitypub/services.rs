@@ -3,8 +3,6 @@ use std::env;
 use std::str::FromStr;
 
 extern crate rand;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 
 use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::Data;
@@ -91,23 +89,18 @@ async fn index(data: Data<AppState>) -> impl Responder {
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
             }
+            let total_apps_count = apps.len();
             if data.index_hide_apps_with_no_images {
                 apps.retain(|app| app.image != "#");
             }
             apps.retain(|app| app.visible);
-            let total_apps_count = apps.len();
             let mut unique_urls = HashSet::new();
             apps.retain(|app| {
                 let url = Url::parse(&app.url)
-                    .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
-                unique_urls.insert(url.host_str().unwrap().to_string())
+                .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
+            unique_urls.insert(url.host_str().unwrap().to_string())
             });
 
-            // Show Top 20
-            apps.truncate(20);
-
-            let mut shuffled_apps = apps.to_vec();
-            shuffled_apps.shuffle(&mut thread_rng());
 
             // Get live counts
             let mut live_counts = vec![];
@@ -119,7 +112,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
                     poisoned.into_inner()
                 }
             };
-            for app in shuffled_apps.iter_mut() {
+            for app in apps.iter_mut() {
                 let live_count: usize = sessions
                     .get(&app.url)
                     .map(|sessions| sessions.len())
@@ -127,12 +120,27 @@ async fn index(data: Data<AppState>) -> impl Responder {
                 live_counts.push(live_count);
             }
 
+            // build app to live count vec
+            let mut app_to_live_count: Vec<(DbApp, usize)> = Vec::new();
+            for (i, app) in apps.into_iter().enumerate() {
+                let count = live_counts[i % live_counts.len()];
+                app_to_live_count.push((app, count));
+            }
+            app_to_live_count.sort_by(|a, b| b.1.cmp(&a.1));
+
+            // Show Top 25
+            let top_n = 25;
+            app_to_live_count.truncate(top_n);
+
+            let apps_to_display: Vec<DbApp> = app_to_live_count.clone().into_iter().map(|(v, _) | v).collect();
+            let live_counts_to_display: Vec<usize> = app_to_live_count.into_iter().map(|(_, v) | v).collect();
+
             // Render
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &total_apps_count);
-            ctx.insert("apps", &apps);
-            ctx.insert("shuffled_apps", &shuffled_apps);
-            ctx.insert("live_counts", &live_counts);
+
+            ctx.insert("apps", &apps_to_display);
+            ctx.insert("live_counts", &live_counts_to_display);
 
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
@@ -707,7 +715,6 @@ async fn admin_toggle_visible(
     }
     match toggle_app_visibility(req_body.app_id, &data).await {
         Ok(_) => {
-            let mut ctx = tera::Context::new();
             let template_path = get_template_path(&data, "admin");
             match get_all_apps(&data).await {
                 Ok(apps) => {

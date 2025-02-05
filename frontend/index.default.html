@@ -16,9 +16,9 @@
       <a href="/relays">List of Relays</a>
     </nav>
   </header>
-  <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web.</p>
+  <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web. There are currently {{ apps_count }} apps being tracked. To learn more about the Spatial Internet Graph Relay, visit our docs <a href="https://docs.zesty.xyz/graph/overview">here</a>.</p>
   <div class="tiles">
-    {% for app in shuffled_apps %}
+    {% for app in apps %}
     <div class="tile" onclick="window.open('{{ app.url }}', '_blank', 'noopener,noreferrer')">
       {% if app.image != "#" %}
       <img src="{{app.image}}">
@@ -30,7 +30,7 @@
         <p>{{ live_counts[loop.index0] }} here now</p>
       </div>
       <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">
-        <button type="button">Visit {{ app.name }}</button>
+        <button type="button">Open {{ app.name }}</button>
       </a>
     </div>
     {% endfor %}
