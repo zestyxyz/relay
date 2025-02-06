@@ -26,7 +26,12 @@
   <div class="list-container">
   {% macro show_app(app) %}
     {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
-      <div class="card" data-url="{{ app.url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}">
+      {% if app.url is starting_with("https") %}
+        {% set adjusted_url = app.url %}
+      {% else %}
+        {% set adjusted_url = "https://" ~ app.url %}
+      {% endif %}
+      <div class="card" data-url="{{ adjusted_url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}">
         {% if 'action' in app.tags %}
           <i class="genre fa-solid fa-hand-fist" aria-hidden="true" title="Action"></i>
         {% endif %}
@@ -43,7 +48,7 @@
           <i class="genre fa-solid fa-puzzle-piece" aria-hidden="true" title="Puzzle/Strategy"></i>
         {% endif %}
         
-        <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">
+        <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
           <button type="button">Open {{ app.name }}</button>
         </a>
         
@@ -52,7 +57,7 @@
         </a>
         
         <p>{{ app.description }}</p>
-        <a href="{{ app.url | safe }}" target="_blank" rel="noopener noreferrer">{{ app.url }}</a>
+        <a href="{{ adjusted_url | safe }}" target="_blank" rel="noopener noreferrer">{{ adjusted_url }}</a>
 
       </div>
     {% endif %}
