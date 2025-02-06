@@ -96,11 +96,18 @@ async fn index(data: Data<AppState>) -> impl Responder {
             apps.retain(|app| app.visible);
             let mut unique_urls = HashSet::new();
             apps.retain(|app| {
-                let url = Url::parse(&app.url)
-                .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
-            unique_urls.insert(url.host_str().unwrap().to_string())
+                let url = if !app.url.starts_with("https") {
+                    let mut adjusted_url = String::new();
+                    adjusted_url.push_str("https://");
+                    adjusted_url.push_str(&app.url);
+                    adjusted_url
+                } else {
+                    app.url.clone()
+                };
+                let parsed_url = Url::parse(&url)
+                    .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
+                unique_urls.insert(parsed_url.host_str().unwrap().to_string())
             });
-
 
             // Get live counts
             let mut live_counts = vec![];
@@ -132,8 +139,13 @@ async fn index(data: Data<AppState>) -> impl Responder {
             let top_n = 25;
             app_to_live_count.truncate(top_n);
 
-            let apps_to_display: Vec<DbApp> = app_to_live_count.clone().into_iter().map(|(v, _) | v).collect();
-            let live_counts_to_display: Vec<usize> = app_to_live_count.into_iter().map(|(_, v) | v).collect();
+            let apps_to_display: Vec<DbApp> = app_to_live_count
+                .clone()
+                .into_iter()
+                .map(|(v, _)| v)
+                .collect();
+            let live_counts_to_display: Vec<usize> =
+                app_to_live_count.into_iter().map(|(_, v)| v).collect();
 
             // Render
             let mut ctx = tera::Context::new();
@@ -600,8 +612,8 @@ async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responde
     let cookie = request.cookie("relay-admin-token");
     if cookie.is_none() {
         return HttpResponse::TemporaryRedirect()
-        .append_header(("Location", "/login"))
-        .finish();
+            .append_header(("Location", "/login"))
+            .finish();
     }
     match get_all_apps(&data).await {
         Ok(apps) => {
@@ -728,9 +740,7 @@ async fn admin_toggle_visible(
                 Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
             }
         }
-        Err(e) => {
-            HttpResponse::InternalServerError().body(e.to_string())
-        },
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
