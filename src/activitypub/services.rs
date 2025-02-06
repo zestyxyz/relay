@@ -96,14 +96,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
             apps.retain(|app| app.visible);
             let mut unique_urls = HashSet::new();
             apps.retain(|app| {
-                let url = if !app.url.starts_with("https") {
-                    let mut adjusted_url = String::new();
-                    adjusted_url.push_str("https://");
-                    adjusted_url.push_str(&app.url);
-                    adjusted_url
-                } else {
-                    app.url.clone()
-                };
+                let url = normalize_app_url(app.url.clone());
                 let parsed_url = Url::parse(&url)
                     .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
                 unique_urls.insert(parsed_url.host_str().unwrap().to_string())
@@ -396,10 +389,11 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
                 .get(&app.url)
                 .map(|sessions| sessions.len())
                 .unwrap_or(0);
+            let url = normalize_app_url(app.url.clone());
             let mut ctx = tera::Context::new();
             ctx.insert("name", &app.name);
             ctx.insert("description", &app.description);
-            ctx.insert("url", &app.url);
+            ctx.insert("url", &url);
             ctx.insert("image", &app.image);
             ctx.insert("live_count", &live_count);
             match data.tera.render(&template_path, &ctx) {
@@ -796,4 +790,15 @@ fn prune_old_sessions(data: &Data<AppState>) {
             (time::OffsetDateTime::now_utc().unix_timestamp() * 1000) - session.timestamp < 5000
         })
     });
+}
+
+fn normalize_app_url(url: String) -> String {
+    if !url.starts_with("https") {
+        let mut adjusted_url = String::new();
+        adjusted_url.push_str("https://");
+        adjusted_url.push_str(&url);
+        adjusted_url
+    } else {
+        url
+    }
 }

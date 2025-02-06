@@ -19,7 +19,12 @@
   <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web. There are currently {{ apps_count }} apps being tracked. To learn more about the Spatial Internet Graph Relay, visit our docs <a href="https://docs.zesty.xyz/graph/overview">here</a>.</p>
   <div class="tiles">
     {% for app in apps %}
-    <div class="tile" onclick="window.open('{{ app.url }}', '_blank', 'noopener,noreferrer')">
+    {% if app.url is starting_with("https") %}
+      {% set adjusted_url = app.url %}
+    {% else %}
+      {% set adjusted_url = "https://" ~ app.url %}
+    {% endif %}
+    <div class="tile" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
       {% if app.image != "#" %}
       <img src="{{app.image}}">
       {% else %}
@@ -29,7 +34,7 @@
         <div class="live-dot"></div>
         <p>{{ live_counts[loop.index0] }} here now</p>
       </div>
-      <a href="{{ app.url }}" target="_blank" rel="noopener noreferrer">
+      <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
         <button type="button">Open {{ app.name }}</button>
       </a>
     </div>
