@@ -28,6 +28,7 @@ jobs:
 
     # Make script executable and run checks
     - name: Check page rendering
-      run: |
+      uses: actions/checkout@v4
+    - run: |
         chmod +x ./check-pages.sh
-        ./check-pages.sh ${{ secrets.HOST }}
+        ./check-pages.sh "${{ vars.RELAY_URL }}"
