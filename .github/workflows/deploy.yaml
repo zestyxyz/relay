@@ -22,3 +22,13 @@ jobs:
           docker compose down
           git pull
           docker compose up -d
+
+    - name: Wait for deployment
+      run: sleep 30
+
+    # Make script executable and run checks
+    - name: Check page rendering
+      uses: actions/checkout@v4
+    - run: |
+        chmod +x ./check-pages.sh
+        ./check-pages.sh "${{ vars.RELAY_URL }}"
