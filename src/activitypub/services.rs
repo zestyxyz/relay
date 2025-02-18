@@ -793,7 +793,7 @@ fn prune_old_sessions(data: &Data<AppState>) {
 }
 
 fn normalize_app_url(url: String) -> String {
-    if !url.starts_with("https") {
+    if !url.starts_with("https") && !url.starts_with("http") {
         let mut adjusted_url = String::new();
         adjusted_url.push_str("https://");
         adjusted_url.push_str(&url);

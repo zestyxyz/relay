@@ -19,7 +19,7 @@
   <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web. There are currently {{ apps_count }} apps being tracked. To learn more about the Spatial Internet Graph Relay, visit our docs <a href="https://docs.zesty.xyz/graph/overview">here</a>.</p>
   <div class="tiles">
     {% for app in apps %}
-    {% if app.url is starting_with("https") %}
+    {% if app.url is starting_with("https") or app.url is starting_with("http") %}
       {% set adjusted_url = app.url %}
     {% else %}
       {% set adjusted_url = "https://" ~ app.url %}
