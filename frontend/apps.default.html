@@ -26,7 +26,7 @@
   <div class="list-container">
   {% macro show_app(app) %}
     {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
-      {% if app.url is starting_with("https") %}
+      {% if app.url is starting_with("https") or app.url is starting_with("http") %}
         {% set adjusted_url = app.url %}
       {% else %}
         {% set adjusted_url = "https://" ~ app.url %}
