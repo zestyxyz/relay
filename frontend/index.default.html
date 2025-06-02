@@ -4,41 +4,90 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spatial Internet Graph Relay</title>
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
   <header>
     <nav>
-      <a href="/">Home</a>
-      <a href="/apps">List of Apps</a>
-      <a href="/relays">List of Relays</a>
+      <a href="/" class="nav-brand">🌐 SIGR</a>
+      <div class="nav-links">
+        <a href="/" class="active">Home</a>
+        <a href="/apps">Apps</a>
+        <a href="/relays">Relays</a>
+      </div>
     </nav>
   </header>
-  <p>This is a deployment of a Spatial Internet Graph Relay, which helps to catalogue spatial experiences on the web. There are currently {{ apps_count }} apps being tracked. To learn more about the Spatial Internet Graph Relay, visit our docs <a href="https://docs.zesty.xyz/graph/overview">here</a>.</p>
-  <div class="tiles">
-    {% for app in apps %}
-    {% if app.url is starting_with("https") or app.url is starting_with("http") %}
-      {% set adjusted_url = app.url %}
-    {% else %}
-      {% set adjusted_url = "https://" ~ app.url %}
-    {% endif %}
-    <div class="tile" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
-      {% if app.image != "#" %}
-      <img src="{{app.image}}">
-      {% else %}
-      <img src="/static/images/noimage.png">
-      {% endif %}
-      <div class="live-count-container">
-        <div class="live-dot"></div>
-        <p>{{ live_counts[loop.index0] }} here now</p>
+  
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">Spatial Internet Graph Relay</h1>
+      <p class="hero-subtitle">
+        Discover and explore spatial experiences on the web. Connect to immersive 3D worlds, 
+        virtual spaces, and interactive applications through our distributed relay network.
+      </p>
+      <div class="stats-container">
+        <div class="stat-item">
+          <span class="stat-number">{{ apps_count }}</span>
+          <span class="stat-label">Apps Tracked</span>
+        </div>
       </div>
-      <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
-        <button type="button">Open {{ app.name }}</button>
-      </a>
-    </div>
-    {% endfor %}
-  </div>
+      <p style="margin-top: 2rem;">
+        <a href="https://docs.zesty.xyz/graph/overview" target="_blank" rel="noopener noreferrer" 
+           style="color: #667eea; text-decoration: none; font-weight: 600;">
+          📚 Learn more about SIGR →
+        </a>
+      </p>
+    </section>
+
+    <section class="search-container">
+      <input type="text" class="search-box" placeholder="🔍 Search spatial experiences..." 
+             oninput="searchApps(this.value)">
+    </section>
+
+    <section class="tiles">
+      {% for app in apps %}
+      {% if app.url is starting_with("https") or app.url is starting_with("http") %}
+        {% set adjusted_url = app.url %}
+      {% else %}
+        {% set adjusted_url = "https://" ~ app.url %}
+      {% endif %}
+      <div class="tile" data-name="{{ app.name | lower }}" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
+        <div class="tile-content">
+          {% if app.image != "#" %}
+          <img src="{{app.image}}" class="tile-image" alt="{{ app.name }}">
+          {% else %}
+          <img src="/static/images/noimage.png" class="tile-image" alt="{{ app.name }}">
+          {% endif %}
+          
+          <h3 class="tile-title">{{ app.name }}</h3>
+          
+          <div class="live-count-container">
+            <div class="live-dot"></div>
+            <p class="live-count-text">{{ live_counts[loop.index0] }} here now</p>
+          </div>
+          
+          <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer" class="tile-button" 
+             onclick="event.stopPropagation();">
+            Launch Experience
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+  </main>
+
+  <script>
+    function searchApps(query) {
+      const tiles = document.querySelectorAll('.tile');
+      const searchTerm = query.toLowerCase().trim();
+      
+      tiles.forEach(tile => {
+        const appName = tile.dataset.name;
+        const isVisible = !searchTerm || appName.includes(searchTerm);
+        tile.style.display = isVisible ? 'block' : 'none';
+      });
+    }
+  </script>
 </body>
 </html>

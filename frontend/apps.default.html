@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apps List</title>
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <title>Apps List - SIGR</title>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="https://kit.fontawesome.com/0df6185928.js" crossorigin="anonymous"></script>
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
@@ -12,17 +11,31 @@
 <body>
   <header>
     <nav>
-      <a href="/">Home</a>
-      <a href="/apps">List of Apps</a>
-      <a href="/relays">List of Relays</a>
+      <a href="/" class="nav-brand">🌐 SIGR</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/apps" class="active">Apps</a>
+        <a href="/relays">Relays</a>
+      </div>
     </nav>
   </header>
-  <h1>Apps List</h1>
-  <details>
-    <summary style="background-color: dimgrey;">Filter Results</summary>
-    <input id="adult" type="checkbox" onchange="filterAdultApps()">Show apps with 18+ content?</input>
-  </details>
-  <hr>
+  
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">All Applications</h1>
+      <p class="hero-subtitle">Browse all spatial experiences and applications in our network</p>
+    </section>
+
+    <section class="search-container">
+      <input type="text" class="search-box" placeholder="🔍 Search applications..." 
+             oninput="searchApps(this.value)">
+      <div style="margin-top: 1rem;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+          <input id="adult" type="checkbox" onchange="filterAdultApps()" style="transform: scale(1.2);">
+          Show apps with 18+ content
+        </label>
+      </div>
+    </section>
   <div class="list-container">
   {% macro show_app(app) %}
     {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
@@ -32,32 +45,43 @@
         {% set adjusted_url = "https://" ~ app.url %}
       {% endif %}
       <div class="card" data-url="{{ adjusted_url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}">
-        {% if 'action' in app.tags %}
-          <i class="genre fa-solid fa-hand-fist" aria-hidden="true" title="Action"></i>
-        {% endif %}
-        {% if 'horror' in app.tags %}
-          <i class="genre fa-solid fa-ghost" aria-hidden="true" title="Horror"></i>
-        {% endif %}
-        {% if 'rpg' in app.tags %}
-          <i class="genre fa-solid fa-dice-d20" aria-hidden="true" title="RPG"></i>
-        {% endif %}
-        {% if ('music' in app.tags) or ('rhythm' in app.tags) %}
-          <i class="genre fa-solid fa-music" aria-hidden="true" title="Music/Rhythm"></i>
-        {% endif %}
-        {% if ('puzzle' in app.tags) or ('strategy' in app.tags) %}
-          <i class="genre fa-solid fa-puzzle-piece" aria-hidden="true" title="Puzzle/Strategy"></i>
-        {% endif %}
         
-        <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
-          <button type="button">Open {{ app.name }}</button>
-        </a>
+        <div class="app-header">
+          <h3 class="app-title">{{ app.name }}</h3>
+          <div class="app-genres">
+            {% if 'action' in app.tags %}
+              <i class="genre fa-solid fa-hand-fist" aria-hidden="true" title="Action"></i>
+            {% endif %}
+            {% if 'horror' in app.tags %}
+              <i class="genre fa-solid fa-ghost" aria-hidden="true" title="Horror"></i>
+            {% endif %}
+            {% if 'rpg' in app.tags %}
+              <i class="genre fa-solid fa-dice-d20" aria-hidden="true" title="RPG"></i>
+            {% endif %}
+            {% if ('music' in app.tags) or ('rhythm' in app.tags) %}
+              <i class="genre fa-solid fa-music" aria-hidden="true" title="Music/Rhythm"></i>
+            {% endif %}
+            {% if ('puzzle' in app.tags) or ('strategy' in app.tags) %}
+              <i class="genre fa-solid fa-puzzle-piece" aria-hidden="true" title="Puzzle/Strategy"></i>
+            {% endif %}
+          </div>
+        </div>
         
-        <a href="{{ app_pages[app.url] }}" rel="noopener noreferrer">
-          <button type="button">Info</button>
-        </a>
+        <p class="app-description">{{ app.description }}</p>
         
-        <p>{{ app.description }}</p>
-        <a href="{{ adjusted_url | safe }}" target="_blank" rel="noopener noreferrer">{{ adjusted_url }}</a>
+        <div class="app-actions">
+          <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
+            <button type="button">🚀 Launch App</button>
+          </a>
+          
+          <a href="{{ app_pages[app.url] }}" rel="noopener noreferrer">
+            <button type="button">ℹ️ Details</button>
+          </a>
+          
+          <a href="{{ adjusted_url | safe }}" target="_blank" rel="noopener noreferrer" class="app-url">
+            {{ adjusted_url }}
+          </a>
+        </div>
 
       </div>
     {% endif %}
@@ -82,13 +106,35 @@
     {% endif %}
   {% endmacro show_group %}
 
-  {% for appgroup in apps %}
-    {{ self::show_group(appgroup=appgroup) }}
-  {% endfor %}
-  </div>
+    {% for appgroup in apps %}
+      {{ self::show_group(appgroup=appgroup) }}
+    {% endfor %}
+    </div>
+  </main>
+
   <script>
-    /** @type {HTMLInputElement} */
     const adult = document.querySelector('#adult');
+
+    function searchApps(query) {
+      const cards = document.querySelectorAll('.card');
+      const searchTerm = query.toLowerCase().trim();
+      
+      cards.forEach(card => {
+        const appName = card.querySelector('button')?.textContent.toLowerCase() || '';
+        const appDescription = card.querySelector('p')?.textContent.toLowerCase() || '';
+        const isVisible = !searchTerm || 
+          appName.includes(searchTerm) || 
+          appDescription.includes(searchTerm);
+        card.style.display = isVisible ? 'block' : 'none';
+      });
+      
+      // Hide empty groups
+      const groups = document.querySelectorAll('.app-container');
+      groups.forEach(group => {
+        const visibleCards = group.querySelectorAll('.card[style*="block"], .card:not([style*="none"])').length;
+        group.style.display = visibleCards > 0 ? 'block' : 'none';
+      });
+    }
 
     function filterAdultApps() {
       const cardsList = document.querySelectorAll("details[data-adult]")
@@ -97,7 +143,7 @@
         const isAdult = app.getAttribute('data-adult');
         if (isAdult == "true") {
           app.style.display = adult.checked ? 'block' : 'none';
-          if (app.parentNode.childElementCount == 2) { // 2 to account for <summary> tag
+          if (app.parentNode.childElementCount == 2) {
             app.parentElement.style.display = app.style.display;
           }
         }
