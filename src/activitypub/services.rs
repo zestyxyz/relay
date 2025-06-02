@@ -140,9 +140,16 @@ async fn index(data: Data<AppState>) -> impl Responder {
             let live_counts_to_display: Vec<usize> =
                 app_to_live_count.into_iter().map(|(_, v)| v).collect();
 
+            // Calculate total users online across all apps
+            let total_users_online: usize = sessions
+                .values()
+                .map(|app_sessions| app_sessions.len())
+                .sum();
+
             // Render
             let mut ctx = tera::Context::new();
             ctx.insert("apps_count", &total_apps_count);
+            ctx.insert("total_users_online", &total_users_online);
 
             ctx.insert("apps", &apps_to_display);
             ctx.insert("live_counts", &live_counts_to_display);
