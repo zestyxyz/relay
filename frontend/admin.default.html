@@ -3,60 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Relay Admin</title>
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css" >
+  <title>Admin Panel - SIGR</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
   <header>
     <nav>
-      <a href="/">Home</a>
-      <a href="/apps">List of Apps</a>
-      <a href="/relays">List of Relays</a>
+      <a href="/" class="nav-brand">🌐 SIGR</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/apps">Apps</a>
+        <a href="/relays">Relays</a>
+        <a href="/admin" class="active">Admin</a>
+      </div>
     </nav>
   </header>
 
-  <h1>Admin</h1>
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">🛠️ Admin Panel</h1>
+      <p class="hero-subtitle">Manage relay connections and app visibility</p>
+    </section>
 
-  <div class="admin-container">
-    <div class="admin-column">
-      <h2>Follow Relay</h2>
-      <form action="/admin/follow" method="post">
-        <label for="Follow">Relay URL</label>
-        <input type="text" name="follow_url" id="follow_url">
-        <input type="submit" value="Follow">
-      </form>
-    </div>
-
-    <div class="admin-column">
-      <h2>Toggle App Visibility</h2>
-
-      {% for app in apps %}
-      <ul>
-        <form action="/admin/togglevisible" method="post">
-          {% if app.visible %}
-            <button type="submit"
-              name="app_id"
-              value="{{ app.id }}"
-              onclick="this.form.submit()">
-              Hide
-            </button>
-            {{ app.id }} | {{ app.url }}
-          {% else %}
-          <button type="submit"
-              name="app_id"
-              value="{{ app.id }}"
-              onclick="this.form.submit()">
-              Show
-            </button>
-            {{ app.id }} | {{ app.url }}
-          {% endif %}
+    <div class="admin-grid">
+      <section class="search-container admin-section">
+        <h2 class="admin-section-title">🔗 Follow Relay</h2>
+        <form action="/admin/follow" method="post" class="admin-form">
+          <div class="form-group">
+            <label for="follow_url" class="form-label">Relay URL</label>
+            <input type="url" name="follow_url" id="follow_url" class="form-input" 
+                   placeholder="https://relay.example.com" required>
+          </div>
+          <button type="submit" class="tile-button">
+            ➕ Follow Relay
+          </button>
         </form>
-      </ul>
-      {% endfor %}
-    </div>
-  </div>
+      </section>
 
+      <section class="search-container admin-section">
+        <h2 class="admin-section-title">👁️ App Visibility</h2>
+        <div class="app-visibility-list">
+          {% for app in apps %}
+          <div class="app-visibility-item">
+            <div class="app-info">
+              <span class="app-id">#{{ app.id }}</span>
+              <span class="app-url">{{ app.url }}</span>
+            </div>
+            <form action="/admin/togglevisible" method="post" class="visibility-form">
+              {% if app.visible %}
+                <button type="submit" name="app_id" value="{{ app.id }}" 
+                        class="visibility-button visible">
+                  ✅ Visible
+                </button>
+              {% else %}
+                <button type="submit" name="app_id" value="{{ app.id }}" 
+                        class="visibility-button hidden">
+                  ❌ Hidden
+                </button>
+              {% endif %}
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+  </main>
 </body>
 </html>

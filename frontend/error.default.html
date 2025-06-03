@@ -3,20 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Error</title>
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <title>Error - SIGR</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
   <header>
     <nav>
-      <a href="/">Home</a>
-      <a href="/apps">List of Apps</a>
-      <a href="/relays">List of Relays</a>
+      <a href="/" class="nav-brand">🌐 SIGR</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/apps">Apps</a>
+        <a href="/relays">Relays</a>
+      </div>
     </nav>
   </header>
-  <h1>Error</h1>
-  <p>Oh no! An error has occurred. You may have tried to access a page that doesn't exist or that you are not authorized for.</p>
+  
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title" style="color: #ff4757;">⚠️ Oops!</h1>
+      <p class="hero-subtitle">
+        Something went wrong. The page you're looking for might not exist or you may not have permission to access it.
+      </p>
+      
+      <div style="margin-top: 2rem;">
+        <a href="/" class="tile-button" style="margin-right: 1rem;">
+          🏠 Go Home
+        </a>
+        <a href="/apps" class="tile-button" style="background: linear-gradient(135deg, #ff4757 0%, #ff3742 100%);">
+          📱 Browse Apps
+        </a>
+      </div>
+      
+      <p style="margin-top: 2rem; font-size: 0.9rem; color: #666;">
+        If you think this is a mistake, please try refreshing the page or contact the administrator.
+      </p>
+    </section>
+  </main>
 </body>
 </html>

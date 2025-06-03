@@ -3,24 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login</title>
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css" >
+  <title>Login - SIGR</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
   <header>
     <nav>
-      <a href="/">Home</a>
-      <a href="/apps">List of Apps</a>
-      <a href="/relays">List of Relays</a>
+      <a href="/" class="nav-brand">🌐 SIGR</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/apps">Apps</a>
+        <a href="/relays">Relays</a>
+      </div>
     </nav>
   </header>
-  <h1>Login</h1>
-  <form action="/login" method="post">
-    <label for="password">Password</label>
-    <input type="password" name="password" id="password">
-    <input type="submit" value="Login">
-  </form>
+  
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">Admin Login</h1>
+      <p class="hero-subtitle">Enter your password to access the administration panel</p>
+    </section>
+
+    <section class="search-container">
+      <form action="/login" method="post" class="login-form">
+        <div class="form-group">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" name="password" id="password" class="form-input" 
+                 placeholder="Enter admin password" required>
+        </div>
+        <button type="submit" class="tile-button login-button">
+          🔐 Login to Admin Panel
+        </button>
+      </form>
+    </section>
+  </main>
 </body>
 </html>
