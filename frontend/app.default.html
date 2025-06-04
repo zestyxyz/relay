@@ -32,7 +32,7 @@
       <h1 class="hero-title">{{ name }}</h1>
       <p class="hero-subtitle">{{ description }}</p>
       
-      <div class="live-count-container" style="justify-content: center; margin: 2rem 0;">
+      <div class="live-count-container" style="justify-content: center; margin: 2rem auto; width: fit-content;">
         <div class="live-dot"></div>
         <p class="live-count-text">{{ live_count }} here now</p>
       </div>
@@ -43,19 +43,12 @@
           🚀 Launch {{ name }}
         </a>
       </div>
-      
-      <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-        <a href="{{ url }}" target="_blank" rel="noopener noreferrer" 
-           style="color: #667eea; text-decoration: none;">
-          {{ url }}
-        </a>
-      </p>
     </section>
     
     {% if image != '#' %}
     <section class="search-container">
       <img src="{{ image }}" alt="{{ name }}" 
-           style="width: 100%; max-width: 600px; height: auto; border-radius: 15px; 
+           style="width: 100%; max-width: 600px; height: auto; border-radius: 15px;
                   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); margin: 0 auto; display: block;">
     </section>
     {% endif %}

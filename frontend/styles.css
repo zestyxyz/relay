@@ -195,16 +195,11 @@ i.genre {
 
 .app-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  grid-gap: 20px;
 }
 
-.card {
-  border-radius: 16px;
-  padding: 2em;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  margin-bottom: 20px;
+.app-container:open {
+  grid-gap: 20px;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 [data-url-filtered] {
@@ -464,7 +459,6 @@ i.genre {
 .app-container {
   margin-bottom: 2rem;
   border: none;
-  background: rgba(255, 255, 255, 0.9);
   border-radius: 15px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
   overflow: hidden;
