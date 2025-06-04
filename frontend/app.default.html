@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ name }}</title>
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css" >
+  <title>{{ name }} - SIGR</title>
   <link rel="stylesheet" href="/static/styles.css">
   <!-- Open Graph -->
   <meta name="og:title" content="{{ name }}">
@@ -19,20 +18,47 @@
 <body>
   <header>
     <nav>
-      <a href="/">Home</a>
-      <a href="/apps">List of Apps</a>
-      <a href="/relays">List of Relays</a>
+      <a href="/" class="nav-brand">🌐 SIGR</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/apps">Apps</a>
+        <a href="/relays">Relays</a>
+      </div>
     </nav>
   </header>
-  <h1>{{ name }}</h1>
-  {% if image != '#' %}
-  <img src="{{ image }}" alt="{{ name }}">
-  {% endif %}
-  <p>{{ description }}</p>
-  <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>
-  <div class="live-count-container">
-    <div class="live-dot"></div>
-    <p>{{ live_count }} here now</p>
-  </div>
+  
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">{{ name }}</h1>
+      <p class="hero-subtitle">{{ description }}</p>
+      
+      <div class="live-count-container" style="justify-content: center; margin: 2rem 0;">
+        <div class="live-dot"></div>
+        <p class="live-count-text">{{ live_count }} here now</p>
+      </div>
+      
+      <div style="margin-top: 2rem;">
+        <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="tile-button" 
+           style="font-size: 1.1rem; padding: 1rem 2rem;">
+          🚀 Launch {{ name }}
+        </a>
+      </div>
+      
+      <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+        <a href="{{ url }}" target="_blank" rel="noopener noreferrer" 
+           style="color: #667eea; text-decoration: none;">
+          {{ url }}
+        </a>
+      </p>
+    </section>
+    
+    {% if image != '#' %}
+    <section class="search-container">
+      <img src="{{ image }}" alt="{{ name }}" 
+           style="width: 100%; max-width: 600px; height: auto; border-radius: 15px; 
+                  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); margin: 0 auto; display: block;">
+    </section>
+    {% endif %}
+  </main>
 </body>
 </html>

@@ -3,24 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Relays List</title>
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <title>Relays List - SIGR</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
   <header>
     <nav>
-      <a href="/">Home</a>
-      <a href="/apps">List of Apps</a>
-      <a href="/relays">List of Relays</a>
+      <a href="/" class="nav-brand">🌐 SIGR</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/apps">Apps</a>
+        <a href="/relays" class="active">Relays</a>
+      </div>
     </nav>
   </header>
-  <h1>List of Known Relays</h1>
-  <div class="list-container">
-  {% for relay in relays %}
-    <a href="{{ relay.ap_id | safe }}" target="_blank" rel="noopener noreferrer">{{ relay.ap_id }}</a>
-  {% endfor %}
-  </div>
+  
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">Network Relays</h1>
+      <p class="hero-subtitle">Connected relays in the Spatial Internet Graph network</p>
+    </section>
+
+    <section class="search-container">
+      <div class="relay-list">
+        {% for relay in relays %}
+        <div class="card">
+          <h3 style="margin: 0 0 1rem 0; color: #333;">
+            <a href="{{ relay.ap_id | safe }}" target="_blank" rel="noopener noreferrer" 
+               style="color: #667eea; text-decoration: none;">
+              {{ relay.ap_id }}
+            </a>
+          </h3>
+          <p style="margin: 0; font-size: 0.9rem; color: #666;">
+            ActivityPub Relay
+          </p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
 </body>
 </html>
