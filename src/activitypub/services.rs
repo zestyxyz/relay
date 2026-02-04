@@ -1,8 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::str::FromStr;
-
-extern crate rand;
 
 use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::Data;
@@ -43,10 +41,6 @@ pub struct BeaconPayload {
     pub tags: Option<String>,
 }
 
-#[derive(Serialize)]
-pub struct JWT {
-    pub token: String,
-}
 
 #[derive(Deserialize)]
 pub struct LoginPayload {
@@ -71,13 +65,43 @@ pub struct SessionPayload {
 }
 
 fn template_fail_screen(e: tera::Error) -> web::Html {
-    println!("{}", e);
+    eprintln!("Template error: {}", e);
     web::Html::new("Failed to render to template!")
 }
 
 fn server_fail_screen(e: super::error::Error) -> web::Html {
-    println!("{}", e);
+    eprintln!("Server error: {}", e);
     web::Html::new("Server has encountered an internal error. Please check again later.")
+}
+
+/// Validates admin JWT token from request cookie
+async fn validate_admin_token(request: &HttpRequest, data: &Data<AppState>) -> Result<(), HttpResponse> {
+    let cookie = request.cookie("relay-admin-token");
+    let token = match cookie {
+        Some(c) => c.value().to_string(),
+        None => return Err(HttpResponse::Unauthorized().body("No authentication token")),
+    };
+
+    let user = match get_relay_by_id(0, data).await {
+        Ok(u) => u,
+        Err(_) => return Err(HttpResponse::InternalServerError().body("Failed to get system user")),
+    };
+
+    let private_key = match user.private_key_pem() {
+        Some(pk) => pk,
+        None => return Err(HttpResponse::InternalServerError().body("System user has no private key")),
+    };
+
+    let keypair = match RS256KeyPair::from_pem(&private_key) {
+        Ok(kp) => kp,
+        Err(_) => return Err(HttpResponse::InternalServerError().body("Invalid system keypair")),
+    };
+
+    let public_key = keypair.public_key();
+    match public_key.verify_token::<NoCustomClaims>(&token, None) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(HttpResponse::Unauthorized().body("Invalid or expired token")),
+    }
 }
 
 #[get("/")]
@@ -97,9 +121,19 @@ async fn index(data: Data<AppState>) -> impl Responder {
             let mut unique_urls = HashSet::new();
             apps.retain(|app| {
                 let url = normalize_app_url(app.url.clone());
-                let parsed_url = Url::parse(&url)
-                    .expect(format!("This app is holding an invalid URL: {}", app.url).as_str());
-                unique_urls.insert(parsed_url.host_str().unwrap().to_string())
+                match Url::parse(&url) {
+                    Ok(parsed_url) => {
+                        if let Some(host) = parsed_url.host_str() {
+                            unique_urls.insert(host.to_string())
+                        } else {
+                            false
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Invalid URL for app {}: {}", app.url, e);
+                        false
+                    }
+                }
             });
 
             // Get live counts
@@ -108,7 +142,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
             let sessions = match data.sessions.read() {
                 Ok(sessions) => sessions,
                 Err(poisoned) => {
-                    println!("Warning: sessions lock was poisoned. Attempting recovery...");
+                    eprintln!("Warning: sessions lock was poisoned. Attempting recovery...");
                     poisoned.into_inner()
                 }
             };
@@ -184,7 +218,7 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
                 ))
         }
         Err(e) => {
-            println!("Error fetching app from DB: {}", e);
+            eprintln!("Error fetching app from DB: {}", e);
             HttpResponse::NotFound().body("No beacon found")
         }
     }
@@ -206,15 +240,27 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let tags = req_body.tags.clone().unwrap_or("".to_string());
 
     // Query system user and DB information
-    let system_user = get_system_user(&data).await.unwrap();
+    let system_user = match get_system_user(&data).await {
+        Ok(user) => user,
+        Err(e) => {
+            eprintln!("Error fetching system user: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to get system user");
+        }
+    };
     let domain = system_user.ap_id.inner().as_str();
     let apps_count = match get_apps_count(&data).await {
         Ok(count) => count,
-        Err(e) => panic!("Error fetching apps count: {}", e),
+        Err(e) => {
+            eprintln!("Error fetching apps count: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to get apps count");
+        }
     };
     let activities_count: i64 = match get_activities_count(&data).await {
         Ok(count) => count,
-        Err(e) => panic!("Error fetching activities count: {}", e),
+        Err(e) => {
+            eprintln!("Error fetching activities count: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to get activities count");
+        }
     };
 
     // Check if app already exists.
@@ -237,13 +283,13 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
             // Parse optionally attached image to see if we need to save a copy locally
             let image = if app.image != image && app_image.contains("data:") {
                 let image_url = create_local_image(
-                    &app.ap_id.clone().into_inner().as_str(),
+                    app.ap_id.clone().into_inner().as_str(),
                     &protocol,
                     &relay_domain,
                     app_image,
                 );
                 if image_url.is_empty() {
-                    println!("Error creating local image");
+                    eprintln!("Error creating local image");
                     return HttpResponse::BadRequest().finish();
                 }
 
@@ -303,30 +349,33 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
                         Ok(_) => {
                             let recipients: Vec<DbRelay> = match get_relay_followers(&data).await {
                                 Ok(relays) => relays,
-                                Err(e) => panic!("Error fetching relays: {}", e),
+                                Err(e) => {
+                                    eprintln!("Error fetching relays: {}", e);
+                                    vec![]
+                                }
                             };
                             let recipient_inboxes: Vec<Url> =
                                 recipients.iter().map(|relay| relay.inbox.clone()).collect();
                             let _ = system_user
                                 .send(activity, recipient_inboxes, false, &data)
                                 .await
-                                .map_err(|e| println!("Error sending activity: {}", e));
+                                .map_err(|e| eprintln!("Error sending activity: {}", e));
                         }
                         Err(e) => {
-                            println!("ERROR CREATING ACTIVITY: {}", e.to_string());
+                            eprintln!("Error creating activity: {}", e);
                             return HttpResponse::InternalServerError().body(e.to_string());
                         }
                     }
 
                     return HttpResponse::Ok().finish();
                 }
-                Err(e) => println!("Error updating app: {}", e),
+                Err(e) => eprintln!("Error updating app: {}", e),
             }
         }
         Ok(None) => {
-            println!("We didn't find the app, we should be creating it");
+            // App doesn't exist, will be created below
         }
-        Err(e) => println!("Error fetching app from DB: {}", e),
+        Err(e) => eprintln!("Error fetching app from DB: {}", e),
     }
 
     // At this point, it should be certain that the app doesn't already exist.
@@ -335,7 +384,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     let image_url = if image.contains("data:") {
         let image_url = create_local_image(&ap_id, &protocol, &relay_domain, &image);
         if image_url.is_empty() {
-            println!("Error creating local image");
+            eprintln!("Error creating local image");
             return HttpResponse::BadRequest().finish();
         }
         image_url
@@ -357,7 +406,7 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     .await
     {
         Ok(_) => (),
-        Err(e) => println!("Error inserting new beacon: {}", e),
+        Err(e) => eprintln!("Error inserting new beacon: {}", e),
     };
     let activity = Create {
         actor: ObjectId::parse(domain).unwrap(),
@@ -367,13 +416,16 @@ async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) ->
     };
     let recipients: Vec<DbRelay> = match get_relay_followers(&data).await {
         Ok(relays) => relays,
-        Err(e) => panic!("Error fetching relays: {}", e),
+        Err(e) => {
+            eprintln!("Error fetching relays: {}", e);
+            vec![]
+        }
     };
     let recipient_inboxes: Vec<Url> = recipients.iter().map(|relay| relay.inbox.clone()).collect();
     let _ = system_user
         .send(activity, recipient_inboxes, false, &data)
         .await
-        .map_err(|e| println!("Error sending activity: {}", e));
+        .map_err(|e| eprintln!("Error sending activity: {}", e));
 
     HttpResponse::Ok().finish()
 }
@@ -388,7 +440,7 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
             let sessions = match data.sessions.read() {
                 Ok(sessions) => sessions,
                 Err(poisoned) => {
-                    println!("Warning: sessions lock was poisoned. Attempting recovery...");
+                    eprintln!("Warning: sessions lock was poisoned. Attempting recovery...");
                     poisoned.into_inner()
                 }
             };
@@ -409,7 +461,7 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
             }
         }
         Err(e) => {
-            println!("Error fetching app from DB: {}", e);
+            eprintln!("Error fetching app from DB: {}", e);
             match data.tera.render(&error_path, &Context::new()) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -445,7 +497,7 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
             }
         }
         Err(e) => {
-            println!("Error fetching apps from DB: {}", e);
+            eprintln!("Error fetching apps from DB: {}", e);
             match data.tera.render(&error_path, &Context::new()) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -468,7 +520,7 @@ async fn get_relays(data: Data<AppState>) -> impl Responder {
             }
         }
         Err(e) => {
-            println!("Error fetching apps from DB: {}", e);
+            eprintln!("Error fetching relays from DB: {}", e);
             match data.tera.render(&error_path, &Context::new()) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -504,7 +556,7 @@ async fn get_activity(info: web::Path<i32>, data: Data<AppState>) -> impl Respon
             .content_type(FEDERATION_CONTENT_TYPE)
             .json(activity),
         Err(e) => {
-            println!("Error fetching activity: {}", e);
+            eprintln!("Error fetching activity: {}", e);
             HttpResponse::NotFound().body("No activity found")
         }
     }
@@ -589,15 +641,28 @@ async fn request_login_token(
 
 #[get("/images/{id}")]
 async fn get_image(request: HttpRequest, _data: Data<AppState>) -> impl Responder {
-    let image_url = format!("images/{}", request.match_info().get("id").unwrap());
+    let id = request.match_info().get("id").unwrap_or("");
+
+    // Sanitize the ID to prevent path traversal attacks
+    // Only allow alphanumeric characters, dots, hyphens, and underscores
+    if id.is_empty() || id.contains("..") || id.contains('/') || id.contains('\\') {
+        return HttpResponse::BadRequest().body("Invalid image ID");
+    }
+
+    // Additional validation: ensure ID only contains safe characters
+    if !id.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == '_') {
+        return HttpResponse::BadRequest().body("Invalid image ID");
+    }
+
+    let image_url = format!("images/{}", id);
     let image = match std::fs::read(&image_url) {
         Ok(image_bytes) => image_bytes,
         Err(_) => {
-            println!("Failed to load image at: {}", image_url);
+            eprintln!("Failed to load image at: {}", image_url);
             std::fs::read("frontend/images/noimage.png").expect("Failed to load placeholder image")
         }
     };
-    let mime = match image_url.split('.').last() {
+    let mime = match image_url.rsplit_once('.').map(|(_, ext)| ext) {
         Some("png") => "image/png",
         Some("jpg") | Some("jpeg") => "image/jpeg",
         Some("gif") => "image/gif",
@@ -610,12 +675,18 @@ async fn get_image(request: HttpRequest, _data: Data<AppState>) -> impl Responde
 #[get("/admin")]
 async fn admin_page(request: HttpRequest, data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "admin");
-    let cookie = request.cookie("relay-admin-token");
-    if cookie.is_none() {
-        return HttpResponse::TemporaryRedirect()
-            .append_header(("Location", "/login"))
-            .finish();
+
+    // Validate JWT token
+    if let Err(response) = validate_admin_token(&request, &data).await {
+        // If no token at all, redirect to login
+        if request.cookie("relay-admin-token").is_none() {
+            return HttpResponse::TemporaryRedirect()
+                .append_header(("Location", "/login"))
+                .finish();
+        }
+        return response;
     }
+
     match get_all_apps(&data).await {
         Ok(apps) => {
             let mut ctx = tera::Context::new();
@@ -639,14 +710,20 @@ async fn webfinger(query: web::Query<WebfingerQuery>, data: Data<AppState>) -> i
     let name = match extract_webfinger_name(&query.resource, &data) {
         Ok(name) => name,
         Err(e) => {
-            println!("Error during webfinger lookup: {:?}", e);
+            eprintln!("Error during webfinger lookup: {:?}", e);
             ""
         }
     };
     if name != "relay" {
         return HttpResponse::NotFound().finish();
     }
-    let db_user = get_system_user(&data).await.unwrap();
+    let db_user = match get_system_user(&data).await {
+        Ok(user) => user,
+        Err(e) => {
+            eprintln!("Error fetching system user: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
     HttpResponse::Ok().json(build_webfinger_response(
         query.resource.clone(),
         db_user.ap_id.into_inner(),
@@ -666,7 +743,7 @@ async fn update_session_info(
     let mut sessions = match data.sessions.write() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            println!("Warning: sessions lock was poisoned. Attempting recovery...");
+            eprintln!("Warning: sessions lock was poisoned. Attempting recovery...");
             poisoned.into_inner()
         }
     };
@@ -681,9 +758,7 @@ async fn update_session_info(
             }
         }
         None => {
-            let mut vec = Vec::new();
-            vec.push(session_info);
-            sessions.insert(req_body.url.clone(), vec);
+            sessions.insert(req_body.url.clone(), vec![session_info]);
         }
     }
 
@@ -696,11 +771,16 @@ async fn admin_follow(
     req_body: web::Form<FollowPayload>,
     data: Data<AppState>,
 ) -> HttpResponse {
-    let cookie = request.cookie("relay-admin-token");
-    if cookie.is_none() {
-        return HttpResponse::InternalServerError().body("Authorization error occurred.");
+    // Validate JWT token
+    if let Err(response) = validate_admin_token(&request, &data).await {
+        return response;
     }
-    let db_user = get_system_user(&data).await.unwrap();
+
+    let db_user = match get_system_user(&data).await {
+        Ok(user) => user,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to get system user: {}", e)),
+    };
+
     let mut ctx = tera::Context::new();
     ctx.insert("message", "Successfully followed!");
     let template_path = get_template_path(&data, "admin");
@@ -708,7 +788,7 @@ async fn admin_follow(
         Ok(_) => match data.tera.render(&template_path, &ctx) {
             Ok(html) => HttpResponse::Ok().body(html),
             Err(e) => {
-                println!("{}", e);
+                eprintln!("Template error: {}", e);
                 HttpResponse::InternalServerError().body(e.to_string())
             }
         },
@@ -722,10 +802,11 @@ async fn admin_toggle_visible(
     req_body: web::Form<ToggleVisibilityPayload>,
     data: Data<AppState>,
 ) -> HttpResponse {
-    let cookie = request.cookie("relay-admin-token");
-    if cookie.is_none() {
-        return HttpResponse::InternalServerError().body("Authorization error occurred.");
+    // Validate JWT token
+    if let Err(response) = validate_admin_token(&request, &data).await {
+        return response;
     }
+
     match toggle_app_visibility(req_body.app_id, &data).await {
         Ok(_) => {
             let template_path = get_template_path(&data, "admin");
@@ -767,8 +848,8 @@ fn create_local_image(ap_id: &str, protocol: &str, relay_domain: &str, app_image
     let dataurl = match DataUrl::parse(app_image) {
         Ok(dataurl) => dataurl,
         Err(e) => {
-            println!("Error parsing image data: {:?}", e);
-            return "".to_string();
+            eprintln!("Error parsing image data: {:?}", e);
+            return String::new();
         }
     };
     let _ = std::fs::write(&filepath, dataurl.get_data());
@@ -787,7 +868,7 @@ fn prune_old_sessions(data: &Data<AppState>) {
     let mut sessions = match data.sessions.write() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            println!("Warning: sessions lock was poisoned during pruning. Attempting recovery...");
+            eprintln!("Warning: sessions lock was poisoned during pruning. Attempting recovery...");
             poisoned.into_inner()
         }
     };

@@ -221,7 +221,12 @@ pub async fn get_relay_follower_id_by_ap_id(
 
 pub async fn get_relay_followers(data: &Data<AppState>) -> Result<Vec<DbRelay>, Error> {
     let db = &data.db;
-    let followers = sqlx::query_as("SELECT f.*, r.* FROM followers f JOIN relays r ON f.follower_id = r.id WHERE f.relay_id = 0")
+    let followers = sqlx::query_as(
+        "SELECT r.id, r.activitypub_id, r.relay_name, r.inbox, r.outbox, r.public_key, r.private_key, r.is_local \
+         FROM followers f \
+         JOIN relays r ON f.follower_id = r.id \
+         WHERE f.relay_id = 0"
+    )
         .fetch_all(db)
         .await?;
     Ok(followers)

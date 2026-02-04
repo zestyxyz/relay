@@ -62,16 +62,16 @@ impl ActivityHandler for Follow {
             data,
             &actor.name,
             actor_ap_id,
-            &actor.inbox.as_str(),
-            &actor.outbox.as_str(),
-            &actor.public_key_pem(),
+            actor.inbox.as_str(),
+            actor.outbox.as_str(),
+            actor.public_key_pem(),
         )
         .await?;
         create_activity(
             data,
             self.id.to_string(),
             actor_ap_id,
-            &self.object.inner().as_str(),
+            self.object.inner().as_str(),
             "Follow",
         )
         .await?;

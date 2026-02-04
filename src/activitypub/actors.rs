@@ -102,10 +102,7 @@ impl DbRelay {
 
     pub async fn follow(&self, other: &str, data: &Data<AppState>) -> Result<(), Error> {
         let other: DbRelay = webfinger_resolve_actor(other, data).await?;
-        let activities_count = match get_activities_count(data).await {
-            Ok(count) => count,
-            Err(e) => panic!("Error fetching apps count: {}", e),
-        };
+        let activities_count = get_activities_count(data).await?;
         let follow = Follow::new(
             self.ap_id.clone(),
             other.ap_id.clone(),
@@ -115,7 +112,7 @@ impl DbRelay {
                 activities_count
             ))?,
         );
-        match create_activity(
+        create_activity(
             data,
             format!(
                 "{}/activities/{}",
@@ -126,15 +123,11 @@ impl DbRelay {
             other.ap_id.inner().as_str(),
             "Follow",
         )
-        .await
-        {
-            Ok(_) => {
-                self.send(follow, vec![other.shared_inbox_or_inbox()], false, data)
-                    .await?;
-                Ok(())
-            }
-            Err(e) => Err(e.into()),
-        }
+        .await?;
+
+        self.send(follow, vec![other.shared_inbox_or_inbox()], false, data)
+            .await?;
+        Ok(())
     }
 }
 
@@ -167,11 +160,7 @@ impl Object for DbRelay {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        match get_relay_by_ap_id(object_id.to_string(), data).await {
-            Ok(Some(r)) => Ok(Some(r)),
-            Ok(None) => Ok(None),
-            Err(e) => Err(e.into()),
-        }
+        get_relay_by_ap_id(object_id.to_string(), data).await
     }
 
     async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
