@@ -115,7 +115,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
             }
             let total_apps_count = apps.len();
             if data.index_hide_apps_with_no_images {
-                apps.retain(|app| app.image != "#");
+                apps.retain(|app| !app.image.is_empty() && app.image != "#");
             }
             apps.retain(|app| app.visible);
             let mut unique_urls = HashSet::new();
@@ -436,6 +436,14 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
     let error_path = get_template_path(&data, "error");
     match get_app_by_id(path.into_inner() + 1, &data).await {
         Ok(app) => {
+            // Hide apps that don't have a valid image
+            if app.image.is_empty() || app.image == "#" {
+                return match data.tera.render(&error_path, &Context::new()) {
+                    Ok(html) => web::Html::new(html),
+                    Err(e) => template_fail_screen(e),
+                };
+            }
+
             prune_old_sessions(&data);
             let sessions = match data.sessions.read() {
                 Ok(sessions) => sessions,
