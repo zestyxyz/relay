@@ -168,11 +168,7 @@ impl Object for DbApp {
         object_id: Url,
         data: &Data<Self::DataType>,
     ) -> Result<Option<Self>, Self::Error> {
-        match get_app_by_ap_id(data, object_id.as_str()).await {
-            Ok(Some(r)) => Ok(Some(r)),
-            Ok(None) => Ok(None),
-            Err(e) => Err(e.into()),
-        }
+        get_app_by_ap_id(data, object_id.as_str()).await
     }
 
     async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Error> {
@@ -204,7 +200,7 @@ impl Object for DbApp {
         json: Self::Kind,
         _data: &Data<Self::DataType>,
     ) -> Result<Self, Self::Error> {
-        let image = json.image.and_then(|i| Some(i.href));
+        let image = json.image.map(|i| i.href);
         let app = DbApp {
             id: json.app_id,
             ap_id: json.id,
@@ -212,7 +208,7 @@ impl Object for DbApp {
             name: json.name,
             description: json.summary,
             active: true,
-            image: image.unwrap_or("".to_string()),
+            image: image.unwrap_or_default(),
             adult: json.sensitive,
             tags: json.tags,
             visible: true,

@@ -8,6 +8,7 @@ use std::{env, fs};
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use activitypub_federation::http_signatures::generate_actor_keypair;
 use actix_cors::Cors;
+use actix_web::http::header;
 use actix_web::middleware::NormalizePath;
 use actix_web::{web, App, HttpServer};
 use dotenvy::dotenv;
@@ -53,7 +54,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let index_hide_apps_with_no_images =
         env::var("INDEX_HIDE_APPS_WITH_NO_IMAGES").unwrap_or("true".to_string()) == "true";
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(20)
         .connect(&database_url)
         .await
         .expect("Error building a connection pool");
@@ -79,7 +80,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 .await
                 .expect("Error inserting default relay");
         }
-        Err(e) => println!("Error locating default relay: {}", e),
+        Err(e) => eprintln!("Error locating default relay: {}", e),
     };
 
     // Determine which pages are custom, if any
@@ -131,9 +132,15 @@ async fn main() -> Result<(), anyhow::Error> {
         .await?;
     // Increase max JSON payload size from 2 MB to 10 MB
     let json_config = web::JsonConfig::default().limit(1024 * 1024 * 10);
+    let cors_origin = full_domain.clone();
     println!("Server listening on: {}", full_domain);
     let _ = HttpServer::new(move || {
-        let cors = Cors::permissive();
+        let cors = Cors::default()
+            .allowed_origin(&cors_origin)
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+            .supports_credentials()
+            .max_age(3600);
         App::new()
             .app_data(json_config.clone())
             .wrap(NormalizePath::trim())
