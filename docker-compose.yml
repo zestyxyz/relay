@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   rust-app:
     image: rust:1.81-bullseye

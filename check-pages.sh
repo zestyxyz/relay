@@ -13,6 +13,26 @@ fi
 # Remove trailing slash if present
 DOMAIN="${1%/}"
 
+# Wait for server to be ready
+MAX_RETRIES=30
+RETRY_INTERVAL=2
+echo "Waiting for server at $DOMAIN to be ready..."
+
+for i in $(seq 1 $MAX_RETRIES); do
+  if curl -s -f -o /dev/null "$DOMAIN/"; then
+    echo "Server is ready!"
+    break
+  fi
+
+  if [ $i -eq $MAX_RETRIES ]; then
+    echo "Server failed to start after $((MAX_RETRIES * RETRY_INTERVAL)) seconds"
+    exit 1
+  fi
+
+  echo "Attempt $i/$MAX_RETRIES - Server not ready, waiting ${RETRY_INTERVAL}s..."
+  sleep $RETRY_INTERVAL
+done
+
 # List of paths to check (without domain)
 PATHS=(
   "/"
