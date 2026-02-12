@@ -113,7 +113,6 @@ async fn index(data: Data<AppState>) -> impl Responder {
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
             }
-            let total_apps_count = apps.len();
             if data.index_hide_apps_with_no_images {
                 apps.retain(|app| app.image != "#");
             }
