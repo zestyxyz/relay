@@ -225,13 +225,30 @@ async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responde
 }
 
 #[put("/beacon")]
-async fn new_beacon(data: Data<AppState>, req_body: web::Json<BeaconPayload>) -> impl Responder {
+async fn new_beacon(
+    req: HttpRequest,
+    data: Data<AppState>,
+    req_body: web::Json<BeaconPayload>,
+) -> impl Responder {
     // Env vars
     let relay_domain = env::var("DOMAIN").expect("DOMAIN must be set");
     let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
 
     // Extract fields from request body
     let url = req_body.url.clone();
+
+    // Validate that the Origin header matches the URL being registered
+    // This ensures browsers can only register the domain they're actually running on
+    if let Some(origin_header) = req.headers().get("Origin") {
+        if let Ok(origin_str) = origin_header.to_str() {
+            if let (Ok(origin_url), Ok(payload_url)) = (Url::parse(origin_str), Url::parse(&url)) {
+                if origin_url.host() != payload_url.host() {
+                    return HttpResponse::Forbidden()
+                        .body("Origin header does not match the URL being registered");
+                }
+            }
+        }
+    }
     let name = req_body.name.clone();
     let description = req_body.description.clone();
     let active = req_body.active;

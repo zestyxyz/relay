@@ -132,14 +132,12 @@ async fn main() -> Result<(), anyhow::Error> {
         .await?;
     // Increase max JSON payload size from 2 MB to 10 MB
     let json_config = web::JsonConfig::default().limit(1024 * 1024 * 10);
-    let cors_origin = full_domain.clone();
     println!("Server listening on: {}", full_domain);
     let _ = HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin(&cors_origin)
+            .allow_any_origin()
             .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
-            .supports_credentials()
             .max_age(3600);
         App::new()
             .app_data(json_config.clone())
