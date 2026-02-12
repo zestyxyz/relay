@@ -1317,15 +1317,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "getopts"
-version = "0.2.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14dbbfd5c71d70241ecf9e6f13737f7b5ce823821063188d7e46c41d371eebd5"
-dependencies = [
- "unicode-width",
-]
-
-[[package]]
 name = "getrandom"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2510,9 +2501,7 @@ dependencies = [
  "dataurl",
  "dotenvy",
  "enum_delegate",
- "getopts",
  "jwt-simple",
- "rand",
  "serde",
  "serde_json",
  "sqlx",
