@@ -14,8 +14,8 @@ fi
 DOMAIN="${1%/}"
 
 # Wait for server to be ready
-MAX_RETRIES=30
-RETRY_INTERVAL=2
+MAX_RETRIES=120
+RETRY_INTERVAL=5
 echo "Waiting for server at $DOMAIN to be ready..."
 
 for i in $(seq 1 $MAX_RETRIES); do
