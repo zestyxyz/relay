@@ -88,6 +88,7 @@ cargo run -r
 | `DEBUG` | Show localhost URLs (`true`/`false`) |
 | `SHOW_ADULT_CONTENT` | Display adult-flagged apps (`true`/`false`) |
 | `INDEX_HIDE_APPS_WITH_NO_IMAGES` | Hide apps without images on homepage |
+| `GOOGLE_ANALYTICS_ID` | Optional Google Analytics tracking ID (e.g., `G-XXXXXXXXXX`) |
 
 ## Customizing the Frontend
 
