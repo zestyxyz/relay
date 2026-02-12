@@ -187,6 +187,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
 
             ctx.insert("apps", &apps_to_display);
             ctx.insert("live_counts", &live_counts_to_display);
+            ctx.insert("google_analytics_id", &data.google_analytics_id);
 
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),

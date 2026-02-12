@@ -37,6 +37,7 @@ pub struct AppState {
     is_custom_page: HashMap<String, bool>,
     sessions: Arc<RwLock<HashMap<String, Vec<SessionInfo>>>>,
     index_hide_apps_with_no_images: bool,
+    google_analytics_id: Option<String>,
 }
 
 #[tokio::main]
@@ -53,6 +54,7 @@ async fn main() -> Result<(), anyhow::Error> {
         env::var("SHOW_ADULT_CONTENT").unwrap_or("false".to_string()) == "true";
     let index_hide_apps_with_no_images =
         env::var("INDEX_HIDE_APPS_WITH_NO_IMAGES").unwrap_or("true".to_string()) == "true";
+    let google_analytics_id = env::var("GOOGLE_ANALYTICS_ID").ok();
     let pool = PgPoolOptions::new()
         .max_connections(20)
         .connect(&database_url)
@@ -108,6 +110,7 @@ async fn main() -> Result<(), anyhow::Error> {
             is_custom_page,
             sessions,
             index_hide_apps_with_no_images,
+            google_analytics_id,
         })
         .debug(debug)
         .build()
