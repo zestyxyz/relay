@@ -3,7 +3,7 @@ mod activitypub;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use std::{env, fs};
+use std::env;
 
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use activitypub_federation::http_signatures::generate_actor_keypair;
