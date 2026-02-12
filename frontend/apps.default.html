@@ -23,7 +23,7 @@
   <main>
     <section class="hero-section">
       <h1 class="hero-title">All Applications</h1>
-      <p class="hero-subtitle">Browse all {{ total_apps }} spatial experiences and applications in our network</p>
+      <p class="hero-subtitle">Browse spatial experiences and applications in our network</p>
     </section>
 
     <section class="search-container">
@@ -106,22 +106,6 @@
       {{ self::show_group(appgroup=appgroup) }}
     {% endfor %}
     </div>
-
-    {% if total_pages > 1 %}
-    <nav class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin: 2rem 0; flex-wrap: wrap;">
-      {% if current_page > 1 %}
-        <a href="/apps?page={{ current_page - 1 }}&per_page={{ per_page }}" class="tile-button" style="padding: 0.5rem 1rem;">← Previous</a>
-      {% endif %}
-
-      <span style="font-weight: 600;">
-        Page {{ current_page }} of {{ total_pages }}
-      </span>
-
-      {% if current_page < total_pages %}
-        <a href="/apps?page={{ current_page + 1 }}&per_page={{ per_page }}" class="tile-button" style="padding: 0.5rem 1rem;">Next →</a>
-      {% endif %}
-    </nav>
-    {% endif %}
   </main>
 
   <script>
