@@ -21,7 +21,7 @@
   
   <main>
     <section class="hero-section">
-      <h1 class="hero-title">Spatial Internet Graph Relay</h1>
+      <h1 class="hero-title">Zesty Relay</h1>
       <p class="hero-subtitle">
         Discover and explore spatial experiences on the web. Connect to immersive 3D worlds, 
         virtual spaces, and interactive applications through our distributed relay network.
@@ -39,7 +39,7 @@
       <p style="margin-top: 2rem;">
         <a href="https://docs.zesty.xyz/graph/overview" target="_blank" rel="noopener noreferrer" 
            style="color: #667eea; text-decoration: none; font-weight: 600;">
-          📚 Learn more about SIGR →
+          📚 Learn more about the Spatial Internet Graph →
         </a>
       </p>
     </section>
@@ -59,7 +59,7 @@
       <div class="tile" data-name="{{ app.name | lower }}" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
         <div class="tile-content">
           {% if app.image != "#" %}
-          <img src="{{app.image}}" class="tile-image" alt="{{ app.name }}">
+          <img src="{{app.image}}" class="tile-image" alt="{{ app.name }}" onerror="this.closest('.tile').style.display='none'">
           {% else %}
           <img src="/static/images/noimage.png" class="tile-image" alt="{{ app.name }}">
           {% endif %}
@@ -79,7 +79,27 @@
       </div>
       {% endfor %}
     </section>
+
+    <section class="community-section">
+      <div class="community-content">
+        <h2 class="community-title">Stay in the Loop</h2>
+        <p class="community-subtitle">Get weekly spatial picks</p>
+
+        <div class="community-actions">
+          <a href="https://zesty.substack.com/embed" target="_blank" rel="noopener noreferrer" class="community-button email-button">
+            📧 Subscribe to Weekly Picks
+          </a>
+          <a href="https://discord.gg/4tcveDjBuD" target="_blank" rel="noopener noreferrer" class="community-button discord-button">
+            💬 Join the Discord
+          </a>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="publisher-footer">
+    <p>Building spatial experiences? <a href="https://zesty.market" target="_blank" rel="noopener noreferrer">Monetize with Zesty →</a></p>
+  </footer>
 
   <script>
     function searchApps(query) {
