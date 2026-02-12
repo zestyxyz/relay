@@ -83,33 +83,15 @@ async fn main() -> Result<(), anyhow::Error> {
         Err(e) => eprintln!("Error locating default relay: {}", e),
     };
 
-    // Determine which pages are custom, if any
+    // Always use default templates (*.default.html)
     let mut is_custom_page = HashMap::<String, bool>::new();
-    is_custom_page.insert(
-        "admin".to_string(),
-        fs::exists("frontend/admin.html").unwrap(),
-    );
-    is_custom_page.insert("app".to_string(), fs::exists("frontend/app.html").unwrap());
-    is_custom_page.insert(
-        "apps".to_string(),
-        fs::exists("frontend/apps.html").unwrap(),
-    );
-    is_custom_page.insert(
-        "error".to_string(),
-        fs::exists("frontend/error.html").unwrap(),
-    );
-    is_custom_page.insert(
-        "index".to_string(),
-        fs::exists("frontend/index.html").unwrap(),
-    );
-    is_custom_page.insert(
-        "login".to_string(),
-        fs::exists("frontend/login.html").unwrap(),
-    );
-    is_custom_page.insert(
-        "relays".to_string(),
-        fs::exists("frontend/relays.html").unwrap(),
-    );
+    is_custom_page.insert("admin".to_string(), false);
+    is_custom_page.insert("app".to_string(), false);
+    is_custom_page.insert("apps".to_string(), false);
+    is_custom_page.insert("error".to_string(), false);
+    is_custom_page.insert("index".to_string(), false);
+    is_custom_page.insert("login".to_string(), false);
+    is_custom_page.insert("relays".to_string(), false);
 
     // Create in-memory session store for app live counts
     let sessions = Arc::new(RwLock::new(HashMap::<String, Vec<SessionInfo>>::new()));
