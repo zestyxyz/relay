@@ -48,6 +48,12 @@ pub struct LoginPayload {
 }
 
 #[derive(Deserialize)]
+pub struct PaginationParams {
+    page: Option<usize>,
+    per_page: Option<usize>,
+}
+
+#[derive(Deserialize)]
 pub struct FollowPayload {
     follow_url: String,
 }
@@ -182,7 +188,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
 
             // Render
             let mut ctx = tera::Context::new();
-            ctx.insert("apps_count", &total_apps_count);
+            ctx.insert("apps_count", &unique_urls.len());
             ctx.insert("total_users_online", &total_users_online);
 
             ctx.insert("apps", &apps_to_display);
@@ -471,9 +477,14 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
 }
 
 #[get("/apps")]
-async fn get_apps(data: Data<AppState>) -> impl Responder {
+async fn get_apps(data: Data<AppState>, query: web::Query<PaginationParams>) -> impl Responder {
     let template_path = get_template_path(&data, "apps");
     let error_path = get_template_path(&data, "error");
+
+    // Pagination defaults
+    let page = query.page.unwrap_or(1).max(1);
+    let per_page = query.per_page.unwrap_or(50).min(100);
+
     match get_all_apps(&data).await {
         Ok(apps) => {
             // TODO: See if calculating this can be lifted off a hot path
@@ -486,11 +497,30 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
                     .or_insert(vec![app.clone()]);
                 app_page_urls.insert(app.url.clone(), app.page_url());
             });
+
+            // Collect and sort app groups for consistent pagination
+            let mut sorted_groups: Vec<Vec<DbApp>> = app_groups.values().cloned().collect();
+            sorted_groups.sort_by(|a, b| a[0].name.to_lowercase().cmp(&b[0].name.to_lowercase()));
+
+            // Pagination
+            let total_groups = sorted_groups.len();
+            let total_pages = (total_groups + per_page - 1) / per_page;
+            let start = (page - 1) * per_page;
+            let paginated_groups: Vec<&Vec<DbApp>> = sorted_groups
+                .iter()
+                .skip(start)
+                .take(per_page)
+                .collect();
+
             let mut ctx = tera::Context::new();
-            ctx.insert("apps", &app_groups.values().collect::<Vec<_>>());
+            ctx.insert("apps", &paginated_groups);
             ctx.insert("app_pages", &app_page_urls);
             ctx.insert("DEBUG", &data.debug);
             ctx.insert("SHOW_ADULT_CONTENT", &data.show_adult_content);
+            ctx.insert("current_page", &page);
+            ctx.insert("total_pages", &total_pages);
+            ctx.insert("per_page", &per_page);
+            ctx.insert("total_apps", &total_groups);
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),

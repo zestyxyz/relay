@@ -1,4 +1,4 @@
-# Zesty Relay
+# Relay
 
 A federated discovery server for spatial web apps, built on [ActivityPub](https://activitypub.rocks/). Part of the Distributed Spatial Internet Graph (DSIG).
 
@@ -30,7 +30,7 @@ Key features:
 └───────────┘                      └──────────┘
 ```
 
-When Relay A follows Relay B, all apps indexed on Relay B also appear on Relay A. Apps that appear across multiple relays are considered more "reputable" by community consensus.
+When Relay A follows Relay B, all apps indexed on Relay B also appear on Relay A. Apps that appear across multiple relays are considered more "reputable" by community consensus. We have more ways of establishing and verifying reputation in the roadmap.
 
 ## Quick Start with Docker
 
@@ -42,6 +42,9 @@ cd relay
 # Configure environment
 cp .env.sample .env
 # Edit .env with your settings (make sure DB URL points to postgres:5432)
+
+# Install sqlx CLI
+cargo install sqlx-cli
 
 # Start the server
 docker compose up -d

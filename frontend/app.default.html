@@ -47,9 +47,10 @@
     
     {% if image != '#' %}
     <section class="search-container">
-      <img src="{{ image }}" alt="{{ name }}" 
+      <img src="{{ image }}" alt="{{ name }}"
            style="width: 100%; max-width: 600px; height: auto; border-radius: 15px;
-                  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); margin: 0 auto; display: block;">
+                  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); margin: 0 auto; display: block;"
+           onerror="this.parentElement.style.display='none'">
     </section>
     {% endif %}
   </main>
