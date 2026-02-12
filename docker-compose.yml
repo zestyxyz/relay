@@ -1,13 +1,14 @@
+version: '3.9'
+
 services:
   rust-app:
-    image: rust:latest
+    image: rust:1.81-bullseye
     env_file:
       - .env
     ports:
       - "${PORT}:${PORT}"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     volumes:
       - .:/app
       - build:/app/target
@@ -16,7 +17,7 @@ services:
     command: bash init.sh
 
   postgres:
-    image: postgres:16
+    image: postgres:latest
     env_file:
       - .env
     environment:
@@ -27,11 +28,6 @@ services:
       - postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres-data:
