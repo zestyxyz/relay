@@ -1,39 +1,142 @@
-# Distributed Spatial Internet Graph Relay
+# Zesty Relay
 
-This is the current prototype for the DSIG relay server, written in Rust.
+A federated discovery server for spatial web apps, built on [ActivityPub](https://activitypub.rocks/). Part of the Distributed Spatial Internet Graph (DSIG).
 
-### Setup with Docker
+**Live instance:** [relay.zesty.xyz](https://relay.zesty.xyz)
 
-- [Install Docker for your system](https://docs.docker.com/engine/install/)
-- Copy `.env.sample` to `.env` and fill in the fields as appropriate
-  - Make sure your DB URL points to postgres:5432 and not localhost:5432.
-- Run `docker compose up -d` to spin up the necessary containers.
+## What is a Relay?
 
-### Non-Docker Setup
+Relays are consensus-building servers that index and provide exposure for 3D apps. They serve as directories where users can discover spatial web experiences.
 
-- [Install Rust](https://www.rust-lang.org/tools/install)
-- Install necessary dependencies
-  - On Ubuntu: `sudo apt install build-essential pkg-config libssl-dev postgresql`
-- Install the sqlx CLI, which will be used for managing the database/migrations.
-  - `cargo install sqlx-cli`
-- Copy `.env.sample` to `.env` and fill in the fields as appropriate
-- From the root directory, run the following commands:
-  - `sqlx database create` to create the database at the URL specified in your `.env` file
-  - `sqlx migrate run` to run the migrations in the `migrations` folder
-- Build and run the server with `cargo run -r`
+Key features:
+- **App Discovery** - Browse and search indexed spatial web apps
+- **Federation** - Relays can follow each other via ActivityPub, sharing their app directories
+- **Beacons** - Apps verify ownership and get indexed by adding a beacon
+- **Live Sessions** - Track active users across indexed apps
+- **Admin Dashboard** - Manage indexed apps and federation settings
+- **Customizable Frontend** - Override default templates with your own HTML
+
+## Architecture
+
+```
+┌─────────────┐    ActivityPub    ┌─────────────┐
+│   Relay A   │◄─────────────────►│   Relay B   │
+└─────────────┘                   └─────────────┘
+      ▲                                 ▲
+      │ Beacon                          │ Beacon
+      │                                 │
+┌─────┴─────┐                      ┌────┴─────┐
+│   App     │                      │   App    │
+└───────────┘                      └──────────┘
+```
+
+When Relay A follows Relay B, all apps indexed on Relay B also appear on Relay A. Apps that appear across multiple relays are considered more "reputable" by community consensus.
+
+## Quick Start with Docker
+
+```bash
+# Clone the repo
+git clone https://github.com/zestyxyz/relay.git
+cd relay
+
+# Configure environment
+cp .env.sample .env
+# Edit .env with your settings (make sure DB URL points to postgres:5432)
+
+# Start the server
+docker compose up -d
+```
+
+## Manual Setup
+
+### Prerequisites
+
+- [Rust](https://www.rust-lang.org/tools/install)
+- PostgreSQL
+- On Ubuntu: `sudo apt install build-essential pkg-config libssl-dev postgresql`
+
+### Installation
+
+```bash
+# Install sqlx CLI
+cargo install sqlx-cli
+
+# Configure environment
+cp .env.sample .env
+# Edit .env with your settings
+
+# Create and migrate database
+sqlx database create
+sqlx migrate run
+
+# Build and run
+cargo run -r
+```
+
+## Configuration
+
+| Variable | Description |
+|----------|-------------|
+| `DOMAIN` | Domain without protocol (e.g., `relay.example.com`) |
+| `PORT` | Server port |
+| `PROTOCOL` | `http://` or `https://` |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `ADMIN_PASSWORD` | Password for `/admin` dashboard |
+| `DEBUG` | Show localhost URLs (`true`/`false`) |
+| `SHOW_ADULT_CONTENT` | Display adult-flagged apps (`true`/`false`) |
+| `INDEX_HIDE_APPS_WITH_NO_IMAGES` | Hide apps without images on homepage |
+
+## Customizing the Frontend
+
+Override default templates by creating files without the `.default` suffix:
+
+```
+frontend/
+├── index.default.html    # Default homepage
+├── index.html            # Your custom homepage (create this)
+├── app.default.html
+├── apps.default.html
+├── admin.default.html
+├── login.default.html
+├── relays.default.html
+├── error.default.html
+└── styles.css
+```
+
+Templates use [Tera](https://keats.github.io/tera/) syntax.
+
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Homepage with indexed apps |
+| `GET /apps` | All apps directory |
+| `GET /app/:id` | Single app page |
+| `GET /relays` | Federated relays list |
+| `GET /relay` | ActivityPub actor |
+| `POST /relay/inbox` | ActivityPub inbox |
+| `GET /.well-known/webfinger` | WebFinger discovery |
+| `GET /admin` | Admin dashboard |
+| `POST /beacon` | Register a new beacon |
 
 ## Development
 
-If you need to reset the state of the database:
-
-### Docker
-
-Delete the Postgres data volume for the containers, it will be reinitialized on startup.
-
-### Non-Docker
-
-```sh
+```bash
+# Reset database
 sqlx database drop
 sqlx database create
 sqlx migrate run
+
+# Run in debug mode
+DEBUG=true cargo run
 ```
+
+## Documentation
+
+- [DSIG Overview](https://docs.zesty.xyz/graph/overview)
+- [Relay Documentation](https://docs.zesty.xyz/graph/relay/about)
+- [Beacon Integration](https://docs.zesty.xyz/graph/beacon)
+
+## License
+
+MIT
