@@ -6,7 +6,7 @@
   <title>Spatial Internet Graph Relay</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-  {% if google_analytics_id %}
+  {% if google_analytics_id is defined and google_analytics_id %}
   <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
   <script>
     window.dataLayer = window.dataLayer || [];

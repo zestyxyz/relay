@@ -21,7 +21,9 @@ jobs:
           cd ${{ secrets.DIR }}
           docker compose down
           git pull
-          docker compose up -d
+          # Ensure GOOGLE_ANALYTICS_ID is set
+          grep -q "GOOGLE_ANALYTICS_ID" .env || echo "GOOGLE_ANALYTICS_ID=${{ secrets.GOOGLE_ANALYTICS_ID }}" >> .env
+          docker compose up -d --build
 
     - name: Wait for deployment
       run: sleep 30
