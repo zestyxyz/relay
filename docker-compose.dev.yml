@@ -1,6 +1,9 @@
+# For local development - builds from source
+# Usage: docker compose -f docker-compose.dev.yml up
+
 services:
-  relay:
-    image: ghcr.io/zestyxyz/relay-prototype:latest
+  rust-app:
+    image: rust:latest
     env_file:
       - .env
     ports:
@@ -9,9 +12,11 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./frontend:/app/frontend:ro
-      - ./images:/app/images
-    restart: unless-stopped
+      - .:/app
+      - build:/app/target
+      - cargo:/usr/local/cargo
+    working_dir: /app
+    command: bash init.sh
 
   postgres:
     image: postgres:17
@@ -31,7 +36,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-    restart: unless-stopped
 
 volumes:
   postgres-data:
+  build:
+  cargo:
