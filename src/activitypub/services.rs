@@ -25,7 +25,7 @@ use super::actors::{DbRelay, Relay};
 use super::apps::{APImage, App, DbApp};
 use super::db::{
     create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
-    get_all_relays, get_app_by_id, get_app_by_url, get_apps_count, get_relay_by_id,
+    get_all_relays, get_app_by_base_url, get_app_by_id, get_apps_count, get_relay_by_id,
     get_relay_followers, get_system_user, toggle_app_visibility, update_app,
 };
 use crate::{AppState, SessionInfo};
@@ -109,6 +109,12 @@ async fn index(data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "index");
     match get_all_apps(&data).await {
         Ok(mut apps) => {
+            // Count total unique base URLs in the database (before filtering)
+            let total_unique_apps: HashSet<String> = apps
+                .iter()
+                .filter_map(|app| get_base_url(&app.url))
+                .collect();
+
             // Filter apps for display in the front carousel
             if !data.debug {
                 apps.retain(|app| !app.url.contains("localhost"));
@@ -117,26 +123,9 @@ async fn index(data: Data<AppState>) -> impl Responder {
                 apps.retain(|app| app.image != "#");
             }
             apps.retain(|app| app.visible);
-            let mut unique_urls = HashSet::new();
-            apps.retain(|app| {
-                let url = normalize_app_url(app.url.clone());
-                match Url::parse(&url) {
-                    Ok(parsed_url) => {
-                        if let Some(host) = parsed_url.host_str() {
-                            unique_urls.insert(host.to_string())
-                        } else {
-                            false
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Invalid URL for app {}: {}", app.url, e);
-                        false
-                    }
-                }
-            });
 
-            // Get live counts
-            let mut live_counts = vec![];
+            // Deduplicate apps by base URL (ignoring query parameters)
+            // Keep the first app for each base URL, sum live counts
             prune_old_sessions(&data);
             let sessions = match data.sessions.read() {
                 Ok(sessions) => sessions,
@@ -145,33 +134,40 @@ async fn index(data: Data<AppState>) -> impl Responder {
                     poisoned.into_inner()
                 }
             };
-            for app in apps.iter_mut() {
+
+            let mut seen_base_urls: HashSet<String> = HashSet::new();
+            let mut deduplicated_apps: Vec<(DbApp, usize)> = Vec::new();
+
+            for app in apps.into_iter() {
+                let base_url = get_base_url(&app.url).unwrap_or_else(|| app.url.clone());
                 let live_count: usize = sessions
                     .get(&app.url)
-                    .map(|sessions| sessions.len())
+                    .map(|s| s.len())
                     .unwrap_or(0);
-                live_counts.push(live_count);
+
+                if let Some(existing) = deduplicated_apps.iter_mut().find(|(a, _)| {
+                    get_base_url(&a.url).unwrap_or_else(|| a.url.clone()) == base_url
+                }) {
+                    // Add live count to existing app with same base URL
+                    existing.1 += live_count;
+                } else if seen_base_urls.insert(base_url) {
+                    // First time seeing this base URL
+                    deduplicated_apps.push((app, live_count));
+                }
             }
 
-            // build app to live count vec
-            let mut app_to_live_count: Vec<(DbApp, usize)> = Vec::new();
-            for (i, app) in apps.into_iter().enumerate() {
-                let count = live_counts[i % live_counts.len()];
-                app_to_live_count.push((app, count));
-            }
-            app_to_live_count.sort_by(|a, b| b.1.cmp(&a.1));
+            // Sort by live count and take top 25
+            deduplicated_apps.sort_by(|a, b| b.1.cmp(&a.1));
+            deduplicated_apps.truncate(25);
 
-            // Show Top 25
-            let top_n = 25;
-            app_to_live_count.truncate(top_n);
-
-            let apps_to_display: Vec<DbApp> = app_to_live_count
-                .clone()
-                .into_iter()
-                .map(|(v, _)| v)
+            let apps_to_display: Vec<DbApp> = deduplicated_apps
+                .iter()
+                .map(|(app, _)| app.clone())
                 .collect();
-            let live_counts_to_display: Vec<usize> =
-                app_to_live_count.into_iter().map(|(_, v)| v).collect();
+            let live_counts_to_display: Vec<usize> = deduplicated_apps
+                .iter()
+                .map(|(_, count)| *count)
+                .collect();
 
             // Calculate total users online across all apps
             let total_users_online: usize = sessions
@@ -181,7 +177,7 @@ async fn index(data: Data<AppState>) -> impl Responder {
 
             // Render
             let mut ctx = tera::Context::new();
-            ctx.insert("apps_count", &unique_urls.len());
+            ctx.insert("apps_count", &total_unique_apps.len());
             ctx.insert("total_users_online", &total_users_online);
 
             ctx.insert("apps", &apps_to_display);
@@ -280,10 +276,11 @@ async fn new_beacon(
         }
     };
 
-    // Check if app already exists.
+    // Check if app with same base URL already exists (ignoring query parameters)
     // If it does and nothing changed, return 304
     // Otherwise, update the DB and send the relevant activities
-    match get_app_by_url(&data, &url).await {
+    let base_url = get_base_url(&url).unwrap_or_else(|| url.clone());
+    match get_app_by_base_url(&data, &base_url).await {
         Ok(Some(app)) => {
             // Set up references to the latest values for each field
             let app_name = &get_latest_value(app.name.clone(), name.clone());
@@ -493,19 +490,44 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
     let error_path = get_template_path(&data, "error");
     match get_all_apps(&data).await {
         Ok(apps) => {
-            // TODO: See if calculating this can be lifted off a hot path
-            let mut app_groups: HashMap<String, Vec<DbApp>> = HashMap::new();
+            // First deduplicate by base URL (ignoring query parameters)
+            let mut seen_base_urls: HashSet<String> = HashSet::new();
+            let mut deduplicated_apps: Vec<DbApp> = Vec::new();
             let mut app_page_urls: HashMap<String, String> = HashMap::new();
-            apps.iter().for_each(|app| {
-                app_groups
-                    .entry(app.name.clone())
-                    .and_modify(|entries| entries.push(app.clone()))
-                    .or_insert(vec![app.clone()]);
+
+            for app in apps.into_iter() {
+                let base_url = get_base_url(&app.url).unwrap_or_else(|| app.url.clone());
                 app_page_urls.insert(app.url.clone(), app.page_url());
-            });
-            let app_groups: Vec<&Vec<DbApp>> = app_groups.values().collect();
+
+                if seen_base_urls.insert(base_url) {
+                    // First time seeing this base URL, keep this app
+                    deduplicated_apps.push(app);
+                }
+            }
+
+            // Group deduplicated apps by domain
+            let mut domain_groups: HashMap<String, Vec<DbApp>> = HashMap::new();
+            for app in deduplicated_apps.into_iter() {
+                let domain = get_domain(&app.url).unwrap_or_else(|| app.url.clone());
+                domain_groups
+                    .entry(domain)
+                    .or_insert_with(Vec::new)
+                    .push(app);
+            }
+
+            // Sort groups by domain, and apps within groups by name
+            let mut sorted_groups: Vec<(String, Vec<DbApp>)> = domain_groups.into_iter().collect();
+            sorted_groups.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+            for (_, apps) in sorted_groups.iter_mut() {
+                apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+            }
+
+            let domains: Vec<String> = sorted_groups.iter().map(|(d, _)| d.clone()).collect();
+            let app_groups: Vec<Vec<DbApp>> = sorted_groups.into_iter().map(|(_, v)| v).collect();
+
             let mut ctx = tera::Context::new();
             ctx.insert("apps", &app_groups);
+            ctx.insert("domains", &domains);
             ctx.insert("app_pages", &app_page_urls);
             ctx.insert("DEBUG", &data.debug);
             ctx.insert("SHOW_ADULT_CONTENT", &data.show_adult_content);
@@ -907,4 +929,23 @@ fn normalize_app_url(url: String) -> String {
     } else {
         url
     }
+}
+
+/// Extracts base URL without query parameters (scheme + host + path)
+fn get_base_url(url: &str) -> Option<String> {
+    let normalized = normalize_app_url(url.to_string());
+    let parsed = Url::parse(&normalized).ok()?;
+    let mut base = format!("{}://{}", parsed.scheme(), parsed.host_str()?);
+    let path = parsed.path();
+    if path != "/" {
+        base.push_str(path);
+    }
+    Some(base)
+}
+
+/// Extracts just the domain (host) from a URL
+fn get_domain(url: &str) -> Option<String> {
+    let normalized = normalize_app_url(url.to_string());
+    let parsed = Url::parse(&normalized).ok()?;
+    parsed.host_str().map(|h| h.to_string())
 }

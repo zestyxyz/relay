@@ -33,10 +33,14 @@ pub async fn get_app_by_ap_id(data: &Data<AppState>, ap_id: &str) -> Result<Opti
     Ok(app)
 }
 
-pub async fn get_app_by_url(data: &Data<AppState>, url: &str) -> Result<Option<DbApp>, Error> {
+/// Find an app by base URL (ignoring query parameters)
+/// Uses LIKE pattern matching: base_url% to match URLs with any query string
+pub async fn get_app_by_base_url(data: &Data<AppState>, base_url: &str) -> Result<Option<DbApp>, Error> {
     let db = &data.db;
-    let app = sqlx::query_as::<_, DbApp>("SELECT * FROM apps WHERE url = $1")
-        .bind(url)
+    // Match the base URL with or without query parameters
+    let pattern = format!("{}%", base_url);
+    let app = sqlx::query_as::<_, DbApp>("SELECT * FROM apps WHERE url LIKE $1 ORDER BY id ASC LIMIT 1")
+        .bind(pattern)
         .fetch_optional(db)
         .await?;
     Ok(app)

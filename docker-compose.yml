@@ -1,6 +1,6 @@
 services:
   rust-app:
-    image: rust:1.81-bullseye
+    image: rust:1.85-bookworm
     env_file:
       - .env
     ports:
@@ -15,7 +15,7 @@ services:
     command: bash init.sh
 
   postgres:
-    image: postgres:latest
+    image: postgres:17
     env_file:
       - .env
     environment:
