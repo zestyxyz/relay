@@ -12,20 +12,29 @@ use actix_web::http::header;
 use actix_web::middleware::NormalizePath;
 use actix_web::{web, App, HttpServer};
 use dotenvy::dotenv;
+use serde::Serialize;
 use sqlx::types::chrono::Utc;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use tera::Tera;
+use tokio::sync::broadcast;
 
 use crate::activitypub::services::{
     admin_follow, admin_page, admin_toggle_visible, api_get_apps, get_activity, get_app, get_apps,
     get_beacon, get_image, get_relays, http_get_system_user, http_post_relay_inbox, index, login,
-    new_beacon, not_found, request_login_token, update_session_info, webfinger,
+    new_beacon, not_found, request_login_token, session_events, update_session_info, webfinger,
 };
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct SessionInfo {
     session_id: String,
     timestamp: i64,
+}
+
+/// Event sent when a new user joins an app (broadcast to SSE subscribers)
+#[derive(Clone, Debug, Serialize)]
+pub struct NewSessionEvent {
+    pub app_name: String,
+    pub app_url: String,
 }
 
 #[derive(Clone)]
@@ -38,6 +47,7 @@ pub struct AppState {
     sessions: Arc<RwLock<HashMap<String, Vec<SessionInfo>>>>,
     index_hide_apps_with_no_images: bool,
     google_analytics_id: Option<String>,
+    new_session_tx: broadcast::Sender<NewSessionEvent>,
 }
 
 #[tokio::main]
@@ -98,6 +108,9 @@ async fn main() -> Result<(), anyhow::Error> {
     // Create in-memory session store for app live counts
     let sessions = Arc::new(RwLock::new(HashMap::<String, Vec<SessionInfo>>::new()));
 
+    // Broadcast channel for SSE - browsers subscribe to get notified when users join apps
+    let (new_session_tx, _) = broadcast::channel::<NewSessionEvent>(100);
+
     let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/frontend/**/*.html")).unwrap();
 
     let config = FederationConfig::builder()
@@ -111,6 +124,7 @@ async fn main() -> Result<(), anyhow::Error> {
             sessions,
             index_hide_apps_with_no_images,
             google_analytics_id,
+            new_session_tx,
         })
         .debug(debug)
         .build()
@@ -147,6 +161,7 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(webfinger)
             .service(get_image)
             .service(update_session_info)
+            .service(session_events)
             .service(actix_files::Files::new("/static", "frontend"))
             .default_service(web::route().to(not_found))
     })

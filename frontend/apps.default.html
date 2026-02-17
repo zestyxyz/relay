@@ -9,6 +9,8 @@
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
+  <div id="session-notification" class="session-notification"></div>
+
   <header>
     <nav>
       <a href="/" class="nav-brand">🌐 SIGR</a>
@@ -154,6 +156,23 @@
 
     // Filter out apps initially on page load
     filterAdultApps();
+
+    // Real-time notifications when users join apps
+    (function() {
+      const banner = document.getElementById('session-notification');
+      let timeout;
+
+      const sse = new EventSource('/events/sessions');
+      sse.onmessage = function(e) {
+        try {
+          const data = JSON.parse(e.data);
+          banner.textContent = `Someone just joined ${data.app_name}`;
+          banner.classList.add('visible');
+          clearTimeout(timeout);
+          timeout = setTimeout(() => banner.classList.remove('visible'), 5000);
+        } catch (err) {}
+      };
+    })();
   </script>
 </body>
 </html>

@@ -9,6 +9,7 @@ actix-cors = "0.7.0"
 actix-files = "0.6.6"
 actix-web = "4.9.0"
 anyhow = "1.0.86"
+async-stream = "0.3"
 async-trait = "0.1.81"
 chrono = { version = "0.4.38", features = ["serde"] }
 dataurl = "0.1.2"
