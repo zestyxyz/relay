@@ -10,12 +10,15 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release && rm -rf src
 
+# Cache bust arg - changes with each commit to force rebuild
+ARG CACHEBUST=1
+
 # Copy actual source code
 COPY src ./src
 COPY migrations ./migrations
 
-# Build the actual application (touch to invalidate the dummy)
-RUN touch src/main.rs && cargo build --release
+# Build the actual application
+RUN cargo build --release
 
 # Runtime stage
 FROM debian:bookworm-slim
