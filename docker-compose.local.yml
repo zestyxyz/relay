@@ -1,9 +1,11 @@
-# For local development - builds from source
-# Usage: docker compose -f docker-compose.dev.yml up
+# For local development - builds from Dockerfile
+# Usage: docker compose -f docker-compose.local.yml up --build
 
 services:
-  rust-app:
-    image: rust:latest
+  relay:
+    build:
+      context: .
+      dockerfile: Dockerfile
     env_file:
       - .env
     environment:
@@ -15,11 +17,9 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - .:/app
-      - build:/app/target
-      - cargo:/usr/local/cargo
-    working_dir: /app
-    command: bash init.sh
+      - ./frontend:/app/frontend:ro
+      - ./images:/app/images
+    restart: unless-stopped
 
   postgres:
     image: postgres:17
@@ -39,8 +39,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
 
 volumes:
   postgres-data:
-  build:
-  cargo:

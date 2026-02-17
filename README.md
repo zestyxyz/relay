@@ -43,11 +43,21 @@ cd relay
 cp .env.sample .env
 # Edit .env with your settings (make sure DB URL points to postgres:5432)
 
-# Install sqlx CLI
-cargo install sqlx-cli
+# Start the server (builds locally)
+docker compose -f docker-compose.local.yml up --build
+```
 
-# Start the server
-docker compose up -d
+### Docker Compose Options
+
+| File | Command | Description |
+|------|---------|-------------|
+| `docker-compose.local.yml` | `docker compose -f docker-compose.local.yml up --build` | Builds from Dockerfile locally |
+| `docker-compose.dev.yml` | `docker compose -f docker-compose.dev.yml up` | Uses rust image + cargo run (for development) |
+| `docker-compose.yml` | `docker compose up` | Production - pulls pre-built image from ghcr.io |
+
+**Rebuild after code changes:**
+```bash
+docker compose -f docker-compose.local.yml up --build --force-recreate
 ```
 
 ## Manual Setup
@@ -125,14 +135,31 @@ Templates use [Tera](https://keats.github.io/tera/) syntax.
 
 ## Development
 
+### Running Locally
+
+**Option 1: Docker (recommended)**
+```bash
+# Build and run with Docker
+docker compose -f docker-compose.local.yml up --build
+
+# Or use dev mode (cargo run inside container, slower but no rebuild needed)
+docker compose -f docker-compose.dev.yml up
+```
+
+**Option 2: Native**
+```bash
+# Make sure PostgreSQL is running locally
+# Run in debug mode
+DEBUG=true cargo run
+```
+
+### Database Management
+
 ```bash
 # Reset database
 sqlx database drop
 sqlx database create
 sqlx migrate run
-
-# Run in debug mode
-DEBUG=true cargo run
 ```
 
 ## Documentation
