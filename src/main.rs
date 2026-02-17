@@ -17,9 +17,9 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use tera::Tera;
 
 use crate::activitypub::services::{
-    admin_follow, admin_page, admin_toggle_visible, get_activity, get_app, get_apps, get_beacon,
-    get_image, get_relays, http_get_system_user, http_post_relay_inbox, index, login, new_beacon,
-    not_found, request_login_token, update_session_info, webfinger,
+    admin_follow, admin_page, admin_toggle_visible, api_get_apps, get_activity, get_app, get_apps,
+    get_beacon, get_image, get_relays, http_get_system_user, http_post_relay_inbox, index, login,
+    new_beacon, not_found, request_login_token, update_session_info, webfinger,
 };
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -137,6 +137,7 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(get_activity)
             .service(get_app)
             .service(get_apps)
+            .service(api_get_apps)
             .service(get_relays)
             .service(login)
             .service(request_login_token)

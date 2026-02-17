@@ -193,6 +193,102 @@ async fn index(data: Data<AppState>) -> impl Responder {
     }
 }
 
+#[derive(Serialize)]
+struct ApiApp {
+    name: String,
+    url: String,
+    image: String,
+    live_count: usize,
+}
+
+#[derive(Serialize)]
+struct ApiAppsResponse {
+    apps: Vec<ApiApp>,
+    total_apps: usize,
+    total_users_online: usize,
+}
+
+#[get("/api/apps")]
+pub async fn api_get_apps(data: Data<AppState>) -> impl Responder {
+    match get_all_apps(&data).await {
+        Ok(mut apps) => {
+            // Filter apps
+            if !data.debug {
+                apps.retain(|app| !app.url.contains("localhost"));
+            }
+            if data.index_hide_apps_with_no_images {
+                apps.retain(|app| app.image != "#");
+            }
+            apps.retain(|app| app.visible);
+
+            // Deduplicate by hostname
+            let mut unique_urls = HashSet::new();
+            apps.retain(|app| {
+                let url = normalize_app_url(app.url.clone());
+                match Url::parse(&url) {
+                    Ok(parsed_url) => {
+                        if let Some(host) = parsed_url.host_str() {
+                            unique_urls.insert(host.to_string())
+                        } else {
+                            false
+                        }
+                    }
+                    Err(_) => false,
+                }
+            });
+
+            // Get live counts
+            prune_old_sessions(&data);
+            let sessions = match data.sessions.read() {
+                Ok(sessions) => sessions,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+
+            let mut app_to_live_count: Vec<(DbApp, usize)> = apps
+                .into_iter()
+                .map(|app| {
+                    let live_count = sessions
+                        .get(&app.url)
+                        .map(|s| s.len())
+                        .unwrap_or(0);
+                    (app, live_count)
+                })
+                .collect();
+
+            // Sort by live count descending
+            app_to_live_count.sort_by(|a, b| b.1.cmp(&a.1));
+
+            // Take top 10
+            app_to_live_count.truncate(10);
+
+            let total_users_online: usize = sessions.values().map(|s| s.len()).sum();
+            let total_apps = unique_urls.len();
+
+            let api_apps: Vec<ApiApp> = app_to_live_count
+                .into_iter()
+                .map(|(app, live_count)| ApiApp {
+                    name: app.name,
+                    url: normalize_app_url(app.url),
+                    image: app.image,
+                    live_count,
+                })
+                .collect();
+
+            HttpResponse::Ok().json(ApiAppsResponse {
+                apps: api_apps,
+                total_apps,
+                total_users_online,
+            })
+        }
+        Err(e) => {
+            eprintln!("API error: {}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to fetch apps"
+            }))
+        }
+    }
+}
+
 #[get("/relay/beacon/{id}")]
 async fn get_beacon(info: web::Path<i32>, data: Data<AppState>) -> impl Responder {
     match get_app_by_id(info.into_inner() + 1, &data).await {
@@ -469,6 +565,7 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
             ctx.insert("url", &url);
             ctx.insert("image", &app.image);
             ctx.insert("live_count", &live_count);
+            ctx.insert("created_at", &app.created_at);
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -662,7 +759,7 @@ async fn request_login_token(
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
-    let duration = Duration::from_days(1);
+    let duration = jwt_simple::prelude::Duration::from_days(1);
     let claim = Claims::create(duration);
     let keypair = RS256KeyPair::from_pem(&user.private_key_pem().unwrap()).unwrap();
     let token = keypair.sign(claim).unwrap();

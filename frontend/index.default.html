@@ -114,7 +114,7 @@
     function searchApps(query) {
       const tiles = document.querySelectorAll('.tile');
       const searchTerm = query.toLowerCase().trim();
-      
+
       tiles.forEach(tile => {
         const appName = tile.dataset.name;
         const isVisible = !searchTerm || appName.includes(searchTerm);

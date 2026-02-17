@@ -82,6 +82,10 @@
 
               <p class="app-description">{{ app.description }}</p>
 
+              <p class="app-indexed" style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
+                Indexed: {{ app.created_at | date(format="%b %d, %Y") }}
+              </p>
+
               <div class="app-actions">
                 <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
                   <button type="button">🚀 Launch App</button>

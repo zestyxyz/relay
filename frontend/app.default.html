@@ -36,6 +36,10 @@
         <div class="live-dot"></div>
         <p class="live-count-text">{{ live_count }} here now</p>
       </div>
+
+      <p style="color: #666; font-size: 0.9rem;">
+        Indexed: {{ created_at | date(format="%b %d, %Y") }}
+      </p>
       
       <div style="margin-top: 2rem;">
         <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="tile-button" 

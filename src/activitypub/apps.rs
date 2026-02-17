@@ -5,6 +5,7 @@ use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::protocol::helpers::{deserialize_one_or_many, deserialize_skip_error};
 use activitypub_federation::protocol::verification::verify_domains_match;
 use activitypub_federation::{kinds::object::PageType, traits::Object};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::{self, FromRow, Row};
@@ -27,6 +28,7 @@ pub struct DbApp {
     pub adult: bool,
     pub tags: String,
     pub visible: bool,
+    pub created_at: DateTime<Utc>,
 }
 
 impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
@@ -43,6 +45,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
             adult: row.try_get("is_adult")?,
             tags: row.try_get("tags")?,
             visible: row.try_get("visible")?,
+            created_at: row.try_get("created_at")?,
         })
     }
 }
@@ -59,6 +62,7 @@ impl DbApp {
         adult: bool,
         tags: String,
         visible: bool,
+        created_at: DateTime<Utc>,
     ) -> Self {
         Self {
             id,
@@ -71,6 +75,7 @@ impl DbApp {
             adult,
             tags,
             visible,
+            created_at,
         }
     }
 
@@ -212,6 +217,7 @@ impl Object for DbApp {
             adult: json.sensitive,
             tags: json.tags,
             visible: true,
+            created_at: Utc::now(),
         };
         Ok(app)
     }
