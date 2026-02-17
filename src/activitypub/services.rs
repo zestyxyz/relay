@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::str::FromStr;
+use std::time::Duration;
 
 use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::Data;
@@ -28,7 +29,7 @@ use super::db::{
     get_all_relays, get_app_by_base_url, get_app_by_id, get_apps_count, get_relay_by_id,
     get_relay_followers, get_system_user, toggle_app_visibility, update_app,
 };
-use crate::{AppState, SessionInfo};
+use crate::{AppState, NewSessionEvent, SessionInfo};
 
 #[derive(Deserialize)]
 pub struct BeaconPayload {
@@ -877,29 +878,90 @@ async fn update_session_info(
         session_id: req_body.session_id.clone(),
         timestamp: req_body.timestamp,
     };
-    let mut sessions = match data.sessions.write() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            eprintln!("Warning: sessions lock was poisoned. Attempting recovery...");
-            poisoned.into_inner()
-        }
-    };
-    match sessions.get_mut(&req_body.url) {
-        Some(vec) => {
-            match vec
-                .iter_mut()
-                .find(|info| info.session_id == req_body.session_id)
-            {
-                Some(session) => session.timestamp = req_body.timestamp,
-                None => vec.push(session_info),
+
+    let is_new_session = {
+        let mut sessions = match data.sessions.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("Warning: sessions lock was poisoned. Attempting recovery...");
+                poisoned.into_inner()
+            }
+        };
+
+        match sessions.get_mut(&req_body.url) {
+            Some(vec) => {
+                match vec
+                    .iter_mut()
+                    .find(|info| info.session_id == req_body.session_id)
+                {
+                    Some(session) => {
+                        session.timestamp = req_body.timestamp;
+                        false
+                    }
+                    None => {
+                        vec.push(session_info);
+                        true
+                    }
+                }
+            }
+            None => {
+                sessions.insert(req_body.url.clone(), vec![session_info]);
+                true
             }
         }
-        None => {
-            sessions.insert(req_body.url.clone(), vec![session_info]);
-        }
+    };
+
+    // Broadcast to SSE subscribers when a new user joins
+    if is_new_session {
+        let app_name = match get_app_by_base_url(&data, &req_body.url).await {
+            Ok(Some(app)) => app.name,
+            _ => get_domain(&req_body.url).unwrap_or_else(|| "an app".to_string()),
+        };
+
+        let _ = data.new_session_tx.send(NewSessionEvent {
+            app_name,
+            app_url: req_body.url.clone(),
+        });
     }
 
     HttpResponse::Ok().finish()
+}
+
+/// SSE endpoint for browsers to receive real-time session notifications
+#[get("/events/sessions")]
+pub async fn session_events(data: Data<AppState>) -> HttpResponse {
+    let mut rx = data.new_session_tx.subscribe();
+
+    let stream = async_stream::stream! {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+
+        loop {
+            tokio::select! {
+                result = rx.recv() => {
+                    match result {
+                        Ok(event) => {
+                            if let Ok(json) = serde_json::to_string(&event) {
+                                yield Ok::<_, std::convert::Infallible>(
+                                    web::Bytes::from(format!("data: {}\n\n", json))
+                                );
+                            }
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    }
+                }
+                _ = interval.tick() => {
+                    yield Ok::<_, std::convert::Infallible>(web::Bytes::from(": heartbeat\n\n"));
+                }
+            }
+        }
+    };
+
+    HttpResponse::Ok()
+        .content_type("text/event-stream")
+        .insert_header(("Cache-Control", "no-cache"))
+        .insert_header(("Connection", "keep-alive"))
+        .streaming(stream)
 }
 
 #[post("/admin/follow")]
