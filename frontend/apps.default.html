@@ -37,75 +37,68 @@
       </div>
     </section>
   <div class="list-container">
-  {% macro show_app(app) %}
-    {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
-      {% if app.url is starting_with("https") or app.url is starting_with("http") %}
-        {% set adjusted_url = app.url %}
-      {% else %}
-        {% set adjusted_url = "https://" ~ app.url %}
-      {% endif %}
-      <div class="card" data-url="{{ adjusted_url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}">
-        
-        <div class="app-header">
-          <h3 class="app-title">{{ app.name }}</h3>
-          <div class="app-genres">
-            {% if 'action' in app.tags %}
-              <i class="genre fa-solid fa-hand-fist" aria-hidden="true" title="Action"></i>
-            {% endif %}
-            {% if 'horror' in app.tags %}
-              <i class="genre fa-solid fa-ghost" aria-hidden="true" title="Horror"></i>
-            {% endif %}
-            {% if 'rpg' in app.tags %}
-              <i class="genre fa-solid fa-dice-d20" aria-hidden="true" title="RPG"></i>
-            {% endif %}
-            {% if ('music' in app.tags) or ('rhythm' in app.tags) %}
-              <i class="genre fa-solid fa-music" aria-hidden="true" title="Music/Rhythm"></i>
-            {% endif %}
-            {% if ('puzzle' in app.tags) or ('strategy' in app.tags) %}
-              <i class="genre fa-solid fa-puzzle-piece" aria-hidden="true" title="Puzzle/Strategy"></i>
-            {% endif %}
-          </div>
-        </div>
-        
-        <p class="app-description">{{ app.description }}</p>
-        
-        <div class="app-actions">
-          <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
-            <button type="button">🚀 Launch App</button>
-          </a>
-          
-          <a href="{{ app_pages[app.url] }}" rel="noopener noreferrer">
-            <button type="button">ℹ️ Details</button>
-          </a>
-        </div>
+    {% for appgroup in apps %}
+      {% set domain = domains[loop.index0] %}
+      {% set_global has_visible = false %}
+      {% for app in appgroup %}
+        {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
+          {% set_global has_visible = true %}
+          {% break %}
+        {% endif %}
+      {% endfor %}
 
-      </div>
-    {% endif %}
-  {% endmacro show_app %}
-
-  {% macro show_group(appgroup) %}
-    {% set_global has_visible = false %}
-    {% for app in appgroup %}
-      {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
-        {% set_global has_visible = true %}
-        {% break %}
-      {% endif %}
-    {% endfor %}
-    
-    {% if has_visible %}
-      <details class="app-container">
-        <summary>{{ appgroup[0].name }}</summary>
+      {% if has_visible %}
+      <details class="app-container" data-domain="{{ domain | lower }}">
+        <summary>{{ domain }}</summary>
         {% for app in appgroup %}
-          {{ self::show_app(app=app) }}
+          {% if (DEBUG or ("localhost" not in app.url)) and (SHOW_ADULT_CONTENT or not app.adult) and app.visible %}
+            {% if app.url is starting_with("https") or app.url is starting_with("http") %}
+              {% set adjusted_url = app.url %}
+            {% else %}
+              {% set adjusted_url = "https://" ~ app.url %}
+            {% endif %}
+            <div class="card" data-url="{{ adjusted_url }}" data-adult="{{ app.adult }}" data-tags="{{ app.tags }}" data-visible="{{ app.visible }}" data-name="{{ app.name | lower }}">
+
+              <div class="app-header">
+                <h3 class="app-title">{{ app.name }}</h3>
+                <div class="app-genres">
+                  {% if 'action' in app.tags %}
+                    <i class="genre fa-solid fa-hand-fist" aria-hidden="true" title="Action"></i>
+                  {% endif %}
+                  {% if 'horror' in app.tags %}
+                    <i class="genre fa-solid fa-ghost" aria-hidden="true" title="Horror"></i>
+                  {% endif %}
+                  {% if 'rpg' in app.tags %}
+                    <i class="genre fa-solid fa-dice-d20" aria-hidden="true" title="RPG"></i>
+                  {% endif %}
+                  {% if ('music' in app.tags) or ('rhythm' in app.tags) %}
+                    <i class="genre fa-solid fa-music" aria-hidden="true" title="Music/Rhythm"></i>
+                  {% endif %}
+                  {% if ('puzzle' in app.tags) or ('strategy' in app.tags) %}
+                    <i class="genre fa-solid fa-puzzle-piece" aria-hidden="true" title="Puzzle/Strategy"></i>
+                  {% endif %}
+                </div>
+              </div>
+
+              <p class="app-description">{{ app.description }}</p>
+
+              <div class="app-actions">
+                <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
+                  <button type="button">🚀 Launch App</button>
+                </a>
+
+                <a href="{{ app_pages[app.url] }}" rel="noopener noreferrer">
+                  <button type="button">ℹ️ Details</button>
+                </a>
+              </div>
+
+            </div>
+          {% endif %}
         {% endfor %}
       </details>
-    {% endif %}
-  {% endmacro show_group %}
-
-    {% for appgroup in apps %}
-      {{ self::show_group(appgroup=appgroup) }}
+      {% endif %}
     {% endfor %}
-    </div>
+  </div>
   </main>
 
   <script>
@@ -113,22 +106,31 @@
 
     function searchApps(query) {
       const cards = document.querySelectorAll('.card');
+      const groups = document.querySelectorAll('.app-container');
       const searchTerm = query.toLowerCase().trim();
-      
+
       cards.forEach(card => {
-        const appName = card.querySelector('button')?.textContent.toLowerCase() || '';
+        const appName = card.dataset.name || '';
         const appDescription = card.querySelector('p')?.textContent.toLowerCase() || '';
-        const isVisible = !searchTerm || 
-          appName.includes(searchTerm) || 
+        const isVisible = !searchTerm ||
+          appName.includes(searchTerm) ||
           appDescription.includes(searchTerm);
         card.style.display = isVisible ? 'block' : 'none';
       });
-      
-      // Hide empty groups
-      const groups = document.querySelectorAll('.app-container');
+
+      // Hide empty groups and show groups that match domain search
       groups.forEach(group => {
-        const visibleCards = group.querySelectorAll('.card[style*="block"], .card:not([style*="none"])').length;
-        group.style.display = visibleCards > 0 ? 'block' : 'none';
+        const domain = group.dataset.domain || '';
+        const visibleCards = group.querySelectorAll('.card:not([style*="none"])').length;
+        const domainMatches = !searchTerm || domain.includes(searchTerm);
+
+        if (domainMatches && searchTerm) {
+          // If searching by domain, show all cards in matching groups
+          group.querySelectorAll('.card').forEach(card => card.style.display = 'block');
+          group.style.display = 'block';
+        } else {
+          group.style.display = visibleCards > 0 ? 'block' : 'none';
+        }
       });
     }
 
