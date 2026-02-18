@@ -43,7 +43,7 @@
           <span class="stat-label">Apps Tracked</span>
         </div>
         <div class="stat-item">
-          <span class="stat-number">{{ total_users_online }}</span>
+          <span class="stat-number" id="total-users-online">{{ total_users_online }}</span>
           <span class="stat-label">Users Online</span>
         </div>
       </div>
@@ -67,7 +67,7 @@
       {% else %}
         {% set adjusted_url = "https://" ~ app.url %}
       {% endif %}
-      <div class="tile" data-name="{{ app.name | lower }}" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
+      <div class="tile" data-name="{{ app.name | lower }}" data-url="{{ app.url }}" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
         <div class="tile-content">
           {% if app.image != "#" %}
           <img src="{{app.image}}" class="tile-image" alt="{{ app.name }}" onerror="this.closest('.tile').style.display='none'">
@@ -124,7 +124,29 @@
       });
     }
 
-    // Real-time notifications when users join apps
+    // Sync counts from API (fallback, runs less frequently)
+    function syncLiveCounts() {
+      fetch('/api/apps')
+        .then(res => res.json())
+        .then(data => {
+          const totalEl = document.getElementById('total-users-online');
+          if (totalEl) totalEl.textContent = data.total_users_online;
+
+          const countsByUrl = {};
+          data.apps.forEach(app => countsByUrl[app.url] = app.live_count);
+
+          document.querySelectorAll('.tile').forEach(tile => {
+            const url = tile.dataset.url;
+            const countEl = tile.querySelector('.live-count-text');
+            if (countEl && url in countsByUrl) {
+              countEl.textContent = countsByUrl[url] + ' here now';
+            }
+          });
+        })
+        .catch(() => {});
+    }
+
+    // Real-time updates via SSE
     (function() {
       const banner = document.getElementById('session-notification');
       let timeout;
@@ -137,9 +159,28 @@
           banner.classList.add('visible');
           clearTimeout(timeout);
           timeout = setTimeout(() => banner.classList.remove('visible'), 5000);
+
+          // Increment count locally (no API call needed)
+          const totalEl = document.getElementById('total-users-online');
+          if (totalEl) totalEl.textContent = parseInt(totalEl.textContent || 0) + 1;
+
+          // Find matching tile by name and increment its count
+          const appNameLower = data.app_name.toLowerCase();
+          document.querySelectorAll('.tile').forEach(tile => {
+            if (tile.dataset.name === appNameLower) {
+              const countEl = tile.querySelector('.live-count-text');
+              if (countEl) {
+                const current = parseInt(countEl.textContent) || 0;
+                countEl.textContent = (current + 1) + ' here now';
+              }
+            }
+          });
         } catch (err) {}
       };
     })();
+
+    // Sync every 30 seconds as fallback (handles users leaving, corrections)
+    setInterval(syncLiveCounts, 30000);
   </script>
 </body>
 </html>
