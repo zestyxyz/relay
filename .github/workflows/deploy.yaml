@@ -70,7 +70,7 @@ jobs:
             echo ${{ secrets.GH_PAT }} | docker login ghcr.io -u ${{ secrets.GH_USERNAME }} --password-stdin
 
             # Pull the latest image
-            docker pull ghcr.io/zestyxyz/relay-prototype:latest
+            docker pull ghcr.io/zestyxyz/relay:latest
 
             # Update .env if needed
             grep -q "GOOGLE_ANALYTICS_ID" .env || echo "GOOGLE_ANALYTICS_ID=${{ secrets.GOOGLE_ANALYTICS_ID }}" >> .env
