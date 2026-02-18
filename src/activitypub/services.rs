@@ -161,15 +161,13 @@ async fn index(data: Data<AppState>) -> impl Responder {
                     .map(|(_, session_list)| session_list.len())
                     .sum();
 
-                if let Some(existing) = deduplicated_apps.iter_mut().find(|(a, _)| {
-                    get_base_url(&a.url).unwrap_or_else(|| a.url.clone()) == base_url
-                }) {
-                    // Add live count to existing app with same base URL
-                    existing.1 += live_count;
-                } else if seen_base_urls.insert(base_url) {
-                    // First time seeing this base URL
-                    deduplicated_apps.push((app, live_count));
+                if seen_base_urls.contains(&base_url) {
+                    // Already have an app with this base URL, skip
+                    // (live_count already includes all sessions for this base URL)
+                    continue;
                 }
+                seen_base_urls.insert(base_url);
+                deduplicated_apps.push((app, live_count));
             }
 
             // Sort by live count and take top 25
