@@ -152,10 +152,14 @@ async fn index(data: Data<AppState>) -> impl Responder {
 
             for app in apps.into_iter() {
                 let base_url = get_base_url(&app.url).unwrap_or_else(|| app.url.clone());
+                // Sum live counts from all session URLs that match this app's base URL
                 let live_count: usize = sessions
-                    .get(&app.url)
-                    .map(|s| s.len())
-                    .unwrap_or(0);
+                    .iter()
+                    .filter(|(session_url, _)| {
+                        get_base_url(session_url).as_ref() == Some(&base_url)
+                    })
+                    .map(|(_, session_list)| session_list.len())
+                    .sum();
 
                 if let Some(existing) = deduplicated_apps.iter_mut().find(|(a, _)| {
                     get_base_url(&a.url).unwrap_or_else(|| a.url.clone()) == base_url
@@ -262,10 +266,15 @@ pub async fn api_get_apps(data: Data<AppState>) -> impl Responder {
             let mut app_to_live_count: Vec<(DbApp, usize)> = apps
                 .into_iter()
                 .map(|app| {
-                    let live_count = sessions
-                        .get(&app.url)
-                        .map(|s| s.len())
-                        .unwrap_or(0);
+                    let base_url = get_base_url(&app.url).unwrap_or_else(|| app.url.clone());
+                    // Sum live counts from all session URLs that match this app's base URL
+                    let live_count: usize = sessions
+                        .iter()
+                        .filter(|(session_url, _)| {
+                            get_base_url(session_url).as_ref() == Some(&base_url)
+                        })
+                        .map(|(_, session_list)| session_list.len())
+                        .sum();
                     (app, live_count)
                 })
                 .collect();
@@ -569,10 +578,15 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
                     poisoned.into_inner()
                 }
             };
-            let live_count = sessions
-                .get(&app.url)
-                .map(|sessions| sessions.len())
-                .unwrap_or(0);
+            let base_url = get_base_url(&app.url).unwrap_or_else(|| app.url.clone());
+            // Sum live counts from all session URLs that match this app's base URL
+            let live_count: usize = sessions
+                .iter()
+                .filter(|(session_url, _)| {
+                    get_base_url(session_url).as_ref() == Some(&base_url)
+                })
+                .map(|(_, session_list)| session_list.len())
+                .sum();
             let url = normalize_app_url(app.url.clone());
             let mut ctx = tera::Context::new();
             ctx.insert("name", &app.name);
