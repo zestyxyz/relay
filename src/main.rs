@@ -52,7 +52,8 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    dotenv().expect("Failed to locate .env file!");
+    // Load .env file if present (optional for Docker where env vars are passed directly)
+    let _ = dotenv();
 
     let debug = env::var("DEBUG").unwrap_or("false".to_string()) == "true";
     let domain = env::var("DOMAIN").expect("DOMAIN must be set");
