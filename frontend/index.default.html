@@ -43,7 +43,7 @@
           <span class="stat-label">Apps Tracked</span>
         </div>
         <div class="stat-item">
-          <span class="stat-number">{{ total_users_online }}</span>
+          <span class="stat-number" id="total-users-online">{{ total_users_online }}</span>
           <span class="stat-label">Users Online</span>
         </div>
       </div>
@@ -67,7 +67,7 @@
       {% else %}
         {% set adjusted_url = "https://" ~ app.url %}
       {% endif %}
-      <div class="tile" data-name="{{ app.name | lower }}" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
+      <div class="tile" data-name="{{ app.name | lower }}" data-url="{{ app.url }}" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
         <div class="tile-content">
           {% if app.image != "#" %}
           <img src="{{app.image}}" class="tile-image" alt="{{ app.name }}" onerror="this.closest('.tile').style.display='none'">
@@ -124,6 +124,33 @@
       });
     }
 
+    // Update live counts from API
+    function updateLiveCounts() {
+      fetch('/api/apps')
+        .then(res => res.json())
+        .then(data => {
+          // Update total users online
+          const totalEl = document.getElementById('total-users-online');
+          if (totalEl) totalEl.textContent = data.total_users_online;
+
+          // Create a map of URL -> live_count
+          const countsByUrl = {};
+          data.apps.forEach(app => {
+            countsByUrl[app.url] = app.live_count;
+          });
+
+          // Update each tile's live count
+          document.querySelectorAll('.tile').forEach(tile => {
+            const url = tile.dataset.url;
+            const countEl = tile.querySelector('.live-count-text');
+            if (countEl && url in countsByUrl) {
+              countEl.textContent = countsByUrl[url] + ' here now';
+            }
+          });
+        })
+        .catch(() => {});
+    }
+
     // Real-time notifications when users join apps
     (function() {
       const banner = document.getElementById('session-notification');
@@ -137,9 +164,15 @@
           banner.classList.add('visible');
           clearTimeout(timeout);
           timeout = setTimeout(() => banner.classList.remove('visible'), 5000);
+
+          // Immediately update counts when someone joins
+          updateLiveCounts();
         } catch (err) {}
       };
     })();
+
+    // Also poll every 10 seconds as fallback
+    setInterval(updateLiveCounts, 10000);
   </script>
 </body>
 </html>
