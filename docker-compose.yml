@@ -1,6 +1,6 @@
 services:
   relay:
-    image: ghcr.io/zestyxyz/relay-prototype:latest
+    image: ghcr.io/zestyxyz/relay:latest
     env_file:
       - .env
     ports:
