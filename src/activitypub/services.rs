@@ -161,13 +161,27 @@ async fn index(data: Data<AppState>) -> impl Responder {
             deduplicated_apps.sort_by(|a, b| b.1.cmp(&a.1));
             deduplicated_apps.truncate(25);
 
-            let apps_to_display: Vec<DbApp> = deduplicated_apps
+            // Create combined app+count structs for template
+            #[derive(Serialize)]
+            struct AppWithCount {
+                id: i32,
+                url: String,
+                name: String,
+                description: String,
+                image: String,
+                live_count: usize,
+            }
+
+            let apps_to_display: Vec<AppWithCount> = deduplicated_apps
                 .iter()
-                .map(|(app, _)| app.clone())
-                .collect();
-            let live_counts_to_display: Vec<usize> = deduplicated_apps
-                .iter()
-                .map(|(_, count)| *count)
+                .map(|(app, count)| AppWithCount {
+                    id: app.id,
+                    url: app.url.clone(),
+                    name: app.name.clone(),
+                    description: app.description.clone(),
+                    image: app.image.clone(),
+                    live_count: *count,
+                })
                 .collect();
 
             // Calculate total users online across all apps
@@ -182,7 +196,6 @@ async fn index(data: Data<AppState>) -> impl Responder {
             ctx.insert("total_users_online", &total_users_online);
 
             ctx.insert("apps", &apps_to_display);
-            ctx.insert("live_counts", &live_counts_to_display);
             ctx.insert("google_analytics_id", &data.google_analytics_id);
 
             match data.tera.render(&template_path, &ctx) {
