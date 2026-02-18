@@ -8,16 +8,16 @@ COPY Cargo.toml Cargo.lock ./
 
 # Create a dummy main.rs to cache dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release && rm -rf src
+RUN cargo build --release
 
-# Cache bust arg - changes with each commit to force rebuild
-ARG CACHEBUST=1
+# Remove the dummy binary and source (keep compiled dependencies)
+RUN rm -rf src && rm -f target/release/relay target/release/deps/relay*
 
 # Copy actual source code
 COPY src ./src
 COPY migrations ./migrations
 
-# Build the actual application
+# Build the actual application (dependencies are cached, only app code compiles)
 RUN cargo build --release
 
 # Runtime stage
