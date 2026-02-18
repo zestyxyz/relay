@@ -66,7 +66,7 @@ pub struct SessionPayload {
 }
 
 fn template_fail_screen(e: tera::Error) -> web::Html {
-    eprintln!("Template error: {}", e);
+    eprintln!("Template error: {:?}", e);
     web::Html::new("Failed to render to template!")
 }
 
@@ -103,6 +103,17 @@ async fn validate_admin_token(request: &HttpRequest, data: &Data<AppState>) -> R
         Ok(_) => Ok(()),
         Err(_) => Err(HttpResponse::Unauthorized().body("Invalid or expired token")),
     }
+}
+
+/// App with embedded live count for template rendering
+#[derive(Serialize)]
+struct AppWithCount {
+    id: i32,
+    url: String,
+    name: String,
+    description: String,
+    image: String,
+    live_count: usize,
 }
 
 #[get("/")]
@@ -162,16 +173,6 @@ async fn index(data: Data<AppState>) -> impl Responder {
             deduplicated_apps.truncate(25);
 
             // Create combined app+count structs for template
-            #[derive(Serialize)]
-            struct AppWithCount {
-                id: i32,
-                url: String,
-                name: String,
-                description: String,
-                image: String,
-                live_count: usize,
-            }
-
             let apps_to_display: Vec<AppWithCount> = deduplicated_apps
                 .iter()
                 .map(|(app, count)| AppWithCount {
