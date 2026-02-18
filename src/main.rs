@@ -72,6 +72,12 @@ async fn main() -> Result<(), anyhow::Error> {
         .await
         .expect("Error building a connection pool");
 
+    // Run database migrations automatically at startup
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run database migrations");
+
     // Insert default system user if not already exists
     match sqlx::query("SELECT * FROM relays WHERE id = 0 LIMIT 1;")
         .fetch_optional(&pool)
