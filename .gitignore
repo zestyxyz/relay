@@ -2,4 +2,4 @@
 .env
 /images/*.png
 .DS_Store
-*.sql
+relay_20250116.sql
