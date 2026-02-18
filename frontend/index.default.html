@@ -124,22 +124,17 @@
       });
     }
 
-    // Update live counts from API
-    function updateLiveCounts() {
+    // Sync counts from API (fallback, runs less frequently)
+    function syncLiveCounts() {
       fetch('/api/apps')
         .then(res => res.json())
         .then(data => {
-          // Update total users online
           const totalEl = document.getElementById('total-users-online');
           if (totalEl) totalEl.textContent = data.total_users_online;
 
-          // Create a map of URL -> live_count
           const countsByUrl = {};
-          data.apps.forEach(app => {
-            countsByUrl[app.url] = app.live_count;
-          });
+          data.apps.forEach(app => countsByUrl[app.url] = app.live_count);
 
-          // Update each tile's live count
           document.querySelectorAll('.tile').forEach(tile => {
             const url = tile.dataset.url;
             const countEl = tile.querySelector('.live-count-text');
@@ -151,7 +146,7 @@
         .catch(() => {});
     }
 
-    // Real-time notifications when users join apps
+    // Real-time updates via SSE
     (function() {
       const banner = document.getElementById('session-notification');
       let timeout;
@@ -165,14 +160,27 @@
           clearTimeout(timeout);
           timeout = setTimeout(() => banner.classList.remove('visible'), 5000);
 
-          // Immediately update counts when someone joins
-          updateLiveCounts();
+          // Increment count locally (no API call needed)
+          const totalEl = document.getElementById('total-users-online');
+          if (totalEl) totalEl.textContent = parseInt(totalEl.textContent || 0) + 1;
+
+          // Find matching tile by name and increment its count
+          const appNameLower = data.app_name.toLowerCase();
+          document.querySelectorAll('.tile').forEach(tile => {
+            if (tile.dataset.name === appNameLower) {
+              const countEl = tile.querySelector('.live-count-text');
+              if (countEl) {
+                const current = parseInt(countEl.textContent) || 0;
+                countEl.textContent = (current + 1) + ' here now';
+              }
+            }
+          });
         } catch (err) {}
       };
     })();
 
-    // Also poll every 10 seconds as fallback
-    setInterval(updateLiveCounts, 10000);
+    // Sync every 30 seconds as fallback (handles users leaving, corrections)
+    setInterval(syncLiveCounts, 30000);
   </script>
 </body>
 </html>
