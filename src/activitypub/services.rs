@@ -356,13 +356,18 @@ async fn new_beacon(
     if let Some(origin_header) = req.headers().get("Origin") {
         if let Ok(origin_str) = origin_header.to_str() {
             if let (Ok(origin_url), Ok(payload_url)) = (Url::parse(origin_str), Url::parse(&url)) {
-                if origin_url.host() != payload_url.host() {
+                // Compare hosts, stripping www. prefix for flexibility
+                let origin_host = origin_url.host_str().unwrap_or("").trim_start_matches("www.");
+                let payload_host = payload_url.host_str().unwrap_or("").trim_start_matches("www.");
+                if origin_host != payload_host {
+                    eprintln!("Beacon rejected: Origin '{}' does not match URL '{}'", origin_str, url);
                     return HttpResponse::Forbidden()
                         .body("Origin header does not match the URL being registered");
                 }
             }
         }
     }
+    println!("Beacon request received for: {}", url);
     let name = req_body.name.clone();
     let description = req_body.description.clone();
     let active = req_body.active;
