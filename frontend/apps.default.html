@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apps List - SIGR</title>
+  <title>Worlds - SIGR</title>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="https://kit.fontawesome.com/0df6185928.js" crossorigin="anonymous"></script>
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
@@ -16,7 +16,7 @@
       <a href="/" class="nav-brand">🌐 SIGR</a>
       <div class="nav-links">
         <a href="/">Home</a>
-        <a href="/apps" class="active">Apps</a>
+        <a href="/worlds" class="active">Worlds</a>
         <a href="/relays">Relays</a>
       </div>
     </nav>
@@ -24,17 +24,17 @@
   
   <main>
     <section class="hero-section">
-      <h1 class="hero-title">All Applications</h1>
-      <p class="hero-subtitle">Browse spatial experiences and applications in our network</p>
+      <h1 class="hero-title">All Worlds</h1>
+      <p class="hero-subtitle">Browse spatial experiences and worlds in our network</p>
     </section>
 
     <section class="search-container">
-      <input type="text" class="search-box" placeholder="🔍 Search applications..." 
+      <input type="text" class="search-box" placeholder="🔍 Search worlds..." 
              oninput="searchApps(this.value)">
       <div style="margin-top: 1rem;">
         <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
           <input id="adult" type="checkbox" onchange="filterAdultApps()" style="transform: scale(1.2);">
-          Show apps with 18+ content
+          Show worlds with 18+ content
         </label>
       </div>
     </section>
@@ -90,7 +90,7 @@
 
               <div class="app-actions">
                 <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer">
-                  <button type="button">🚀 Launch App</button>
+                  <button type="button">🚀 Launch World</button>
                 </a>
 
                 <a href="{{ app_pages[app.url] }}" rel="noopener noreferrer">

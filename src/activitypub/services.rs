@@ -567,8 +567,17 @@ async fn new_beacon(
     HttpResponse::Ok().finish()
 }
 
+#[get("/world/{id}")]
+pub async fn get_world(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
+    get_app_handler(data, path).await
+}
+
 #[get("/app/{id}")]
 async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
+    get_app_handler(data, path).await
+}
+
+async fn get_app_handler(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
     let template_path = get_template_path(&data, "app");
     let error_path = get_template_path(&data, "error");
     match get_app_by_id(path.into_inner() + 1, &data).await {
@@ -613,8 +622,17 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
     }
 }
 
+#[get("/worlds")]
+pub async fn get_worlds(data: Data<AppState>) -> impl Responder {
+    get_apps_handler(data).await
+}
+
 #[get("/apps")]
 async fn get_apps(data: Data<AppState>) -> impl Responder {
+    get_apps_handler(data).await
+}
+
+async fn get_apps_handler(data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "apps");
     let error_path = get_template_path(&data, "error");
     match get_all_apps(&data).await {
