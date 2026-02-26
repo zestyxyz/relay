@@ -21,7 +21,7 @@
       <a href="/" class="nav-brand">🌐 SIGR</a>
       <div class="nav-links">
         <a href="/">Home</a>
-        <a href="/apps">Apps</a>
+        <a href="/worlds">Worlds</a>
         <a href="/relays">Relays</a>
       </div>
     </nav>
@@ -41,10 +41,14 @@
         Indexed: {{ created_at | date(format="%b %d, %Y") }}
       </p>
       
-      <div style="margin-top: 2rem;">
-        <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="tile-button" 
+      <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="tile-button"
            style="font-size: 1.1rem; padding: 1rem 2rem;">
-          🚀 Launch {{ name }}
+          Launch {{ name }}
+        </a>
+        <a href="/world/{% if slug %}{{ slug }}{% else %}{{ app_id - 1 }}{% endif %}/edit" class="tile-button"
+           style="font-size: 1.1rem; padding: 1rem 2rem; background: linear-gradient(135deg, #6c757d 0%, #495057 100%);">
+          Edit World
         </a>
       </div>
     </section>

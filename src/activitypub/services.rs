@@ -3,6 +3,8 @@ use std::env;
 use std::str::FromStr;
 use std::time::Duration;
 
+use rand::Rng;
+
 use activitypub_federation::actix_web::inbox::receive_activity;
 use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
@@ -26,8 +28,9 @@ use super::actors::{DbRelay, Relay};
 use super::apps::{APImage, App, DbApp};
 use super::db::{
     create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
-    get_all_relays, get_app_by_base_url, get_app_by_id, get_apps_count, get_relay_by_id,
-    get_relay_followers, get_system_user, toggle_app_visibility, update_app,
+    get_all_relays, get_app_by_base_url, get_app_by_id, get_app_by_slug, get_apps_count,
+    get_relay_by_id, get_relay_followers, get_system_user, mark_app_verified, set_app_slug,
+    set_verification_code, slug_exists, toggle_app_visibility, update_app, update_app_details,
 };
 use crate::{AppState, NewSessionEvent, SessionInfo};
 
@@ -114,6 +117,8 @@ struct AppWithCount {
     description: String,
     image: String,
     live_count: usize,
+    slug: Option<String>,
+    page_path: String,
 }
 
 #[get("/")]
@@ -184,6 +189,8 @@ async fn index(data: Data<AppState>) -> impl Responder {
                     description: app.description.clone(),
                     image: app.image.clone(),
                     live_count: *count,
+                    slug: app.slug.clone(),
+                    page_path: app.page_path(),
                 })
                 .collect();
 
@@ -533,7 +540,7 @@ async fn new_beacon(
         &data,
         ap_id,
         url,
-        name,
+        name.clone(),
         description,
         active,
         image_url,
@@ -542,7 +549,14 @@ async fn new_beacon(
     )
     .await
     {
-        Ok(_) => (),
+        Ok(_) => {
+            // Generate and set a unique slug for the new app
+            let slug = generate_unique_slug(&data, &name).await;
+            // App ID is apps_count + 1 since we just created a new one
+            if let Err(e) = set_app_slug(&data, (apps_count + 1) as i32, &slug).await {
+                eprintln!("Error setting slug for new app: {}", e);
+            }
+        }
         Err(e) => eprintln!("Error inserting new beacon: {}", e),
     };
     let activity = Create {
@@ -567,12 +581,34 @@ async fn new_beacon(
     HttpResponse::Ok().finish()
 }
 
-#[get("/app/{id}")]
-async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
+#[get("/world/{id_or_slug}")]
+pub async fn get_world(data: Data<AppState>, path: web::Path<String>) -> impl Responder {
+    get_app_handler(data, path).await
+}
+
+#[get("/app/{id_or_slug}")]
+async fn get_app(data: Data<AppState>, path: web::Path<String>) -> impl Responder {
+    get_app_handler(data, path).await
+}
+
+async fn get_app_handler(data: Data<AppState>, path: web::Path<String>) -> impl Responder {
     let template_path = get_template_path(&data, "app");
     let error_path = get_template_path(&data, "error");
-    match get_app_by_id(path.into_inner() + 1, &data).await {
-        Ok(app) => {
+
+    let id_or_slug = path.into_inner();
+
+    // Try parsing as ID first, otherwise treat as slug
+    let app_result = if let Ok(id) = id_or_slug.parse::<i32>() {
+        get_app_by_id(id + 1, &data).await.ok()
+    } else {
+        match get_app_by_slug(&data, &id_or_slug).await {
+            Ok(Some(app)) => Some(app),
+            _ => None,
+        }
+    };
+
+    match app_result {
+        Some(app) => {
             prune_old_sessions(&data);
             let sessions = match data.sessions.read() {
                 Ok(sessions) => sessions,
@@ -598,13 +634,15 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
             ctx.insert("image", &app.image);
             ctx.insert("live_count", &live_count);
             ctx.insert("created_at", &app.created_at);
+            ctx.insert("slug", &app.slug);
+            ctx.insert("app_id", &app.id);
             match data.tera.render(&template_path, &ctx) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
             }
         }
-        Err(e) => {
-            eprintln!("Error fetching app from DB: {}", e);
+        None => {
+            eprintln!("App not found: {}", id_or_slug);
             match data.tera.render(&error_path, &Context::new()) {
                 Ok(html) => web::Html::new(html),
                 Err(e) => template_fail_screen(e),
@@ -613,8 +651,17 @@ async fn get_app(data: Data<AppState>, path: web::Path<i32>) -> impl Responder {
     }
 }
 
+#[get("/worlds")]
+pub async fn get_worlds(data: Data<AppState>) -> impl Responder {
+    get_apps_handler(data).await
+}
+
 #[get("/apps")]
 async fn get_apps(data: Data<AppState>) -> impl Responder {
+    get_apps_handler(data).await
+}
+
+async fn get_apps_handler(data: Data<AppState>) -> impl Responder {
     let template_path = get_template_path(&data, "apps");
     let error_path = get_template_path(&data, "error");
     match get_all_apps(&data).await {
@@ -626,7 +673,7 @@ async fn get_apps(data: Data<AppState>) -> impl Responder {
 
             for app in apps.into_iter() {
                 let base_url = get_base_url(&app.url).unwrap_or_else(|| app.url.clone());
-                app_page_urls.insert(app.url.clone(), app.page_url());
+                app_page_urls.insert(app.url.clone(), app.page_path());
 
                 if seen_base_urls.insert(base_url) {
                     // First time seeing this base URL, keep this app
@@ -1056,6 +1103,367 @@ async fn admin_toggle_visible(
     }
 }
 
+// ============================================================================
+// Owner Verification and Editing Endpoints
+// ============================================================================
+
+#[derive(Serialize, Deserialize)]
+struct OwnerClaims {
+    app_id: i32,
+    slug: String,
+}
+
+/// Validate owner token from cookie
+async fn validate_owner_token(
+    request: &HttpRequest,
+    data: &Data<AppState>,
+    expected_app_id: i32,
+) -> Result<OwnerClaims, HttpResponse> {
+    let cookie = request.cookie("relay-owner-token");
+    let token = match cookie {
+        Some(c) => c.value().to_string(),
+        None => return Err(HttpResponse::Unauthorized().body("No owner token")),
+    };
+
+    let user = match get_relay_by_id(0, data).await {
+        Ok(u) => u,
+        Err(_) => {
+            return Err(HttpResponse::InternalServerError().body("Failed to get system user"))
+        }
+    };
+
+    let private_key = match user.private_key_pem() {
+        Some(pk) => pk,
+        None => {
+            return Err(HttpResponse::InternalServerError().body("System user has no private key"))
+        }
+    };
+
+    let keypair = match RS256KeyPair::from_pem(&private_key) {
+        Ok(kp) => kp,
+        Err(_) => return Err(HttpResponse::InternalServerError().body("Invalid system keypair")),
+    };
+
+    let public_key = keypair.public_key();
+    let claims = match public_key.verify_token::<OwnerClaims>(&token, None) {
+        Ok(c) => c,
+        Err(_) => return Err(HttpResponse::Unauthorized().body("Invalid or expired token")),
+    };
+
+    // Verify the token is for the expected app
+    if claims.custom.app_id != expected_app_id {
+        return Err(HttpResponse::Unauthorized().body("Token not valid for this world"));
+    }
+
+    Ok(claims.custom)
+}
+
+/// Create owner token (JWT)
+async fn create_owner_token(
+    data: &Data<AppState>,
+    app_id: i32,
+    slug: &str,
+) -> Result<String, HttpResponse> {
+    let user = match get_relay_by_id(0, data).await {
+        Ok(u) => u,
+        Err(_) => {
+            return Err(HttpResponse::InternalServerError().body("Failed to get system user"))
+        }
+    };
+
+    let private_key = match user.private_key_pem() {
+        Some(pk) => pk,
+        None => {
+            return Err(HttpResponse::InternalServerError().body("System user has no private key"))
+        }
+    };
+
+    let keypair = match RS256KeyPair::from_pem(&private_key) {
+        Ok(kp) => kp,
+        Err(_) => return Err(HttpResponse::InternalServerError().body("Invalid system keypair")),
+    };
+
+    let claims = OwnerClaims {
+        app_id,
+        slug: slug.to_string(),
+    };
+
+    // Token valid for 7 days
+    let duration = jwt_simple::prelude::Duration::from_days(7);
+    let jwt_claims = Claims::with_custom_claims(claims, duration);
+
+    match keypair.sign(jwt_claims) {
+        Ok(token) => Ok(token),
+        Err(_) => Err(HttpResponse::InternalServerError().body("Failed to sign token")),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct EditWorldQuery {
+    verified: Option<bool>,
+}
+
+/// Show edit page - either verification instructions or edit form
+#[get("/world/{slug}/edit")]
+pub async fn get_world_edit(
+    request: HttpRequest,
+    data: Data<AppState>,
+    path: web::Path<String>,
+    query: web::Query<EditWorldQuery>,
+) -> impl Responder {
+    let template_path = get_template_path(&data, "edit");
+    let error_path = get_template_path(&data, "error");
+    let slug = path.into_inner();
+
+    // Get app by slug or ID
+    let app = if let Ok(id) = slug.parse::<i32>() {
+        get_app_by_id(id + 1, &data).await.ok()
+    } else {
+        match get_app_by_slug(&data, &slug).await {
+            Ok(Some(app)) => Some(app),
+            _ => None,
+        }
+    };
+
+    let app = match app {
+        Some(a) => a,
+        None => {
+            return match data.tera.render(&error_path, &Context::new()) {
+                Ok(html) => web::Html::new(html),
+                Err(e) => template_fail_screen(e),
+            }
+        }
+    };
+
+    // Check if user has valid owner token
+    let is_verified = validate_owner_token(&request, &data, app.id).await.is_ok();
+
+    let mut ctx = tera::Context::new();
+    ctx.insert("name", &app.name);
+    ctx.insert("description", &app.description);
+    ctx.insert("url", &app.url);
+    ctx.insert("image", &app.image);
+    ctx.insert("tags", &app.tags);
+    ctx.insert("adult", &app.adult);
+    ctx.insert("slug", &app.slug);
+    ctx.insert("app_id", &app.id);
+    ctx.insert("is_verified", &is_verified);
+    ctx.insert("verification_code", &app.verification_code);
+    ctx.insert("just_verified", &query.verified.unwrap_or(false));
+
+    match data.tera.render(&template_path, &ctx) {
+        Ok(html) => web::Html::new(html),
+        Err(e) => template_fail_screen(e),
+    }
+}
+
+/// Request verification code for a world
+#[post("/world/{slug}/request-verification")]
+pub async fn request_world_verification(
+    data: Data<AppState>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let slug = path.into_inner();
+
+    // Get app by slug or ID
+    let app = if let Ok(id) = slug.parse::<i32>() {
+        get_app_by_id(id + 1, &data).await.ok()
+    } else {
+        match get_app_by_slug(&data, &slug).await {
+            Ok(Some(app)) => Some(app),
+            _ => None,
+        }
+    };
+
+    let app = match app {
+        Some(a) => a,
+        None => return HttpResponse::NotFound().body("World not found"),
+    };
+
+    // Generate verification code if not already set
+    let code = match &app.verification_code {
+        Some(c) if !c.is_empty() => c.clone(),
+        _ => {
+            let new_code = generate_verification_code();
+            if let Err(e) = set_verification_code(&data, app.id, &new_code).await {
+                eprintln!("Error setting verification code: {}", e);
+                return HttpResponse::InternalServerError().body("Failed to set verification code");
+            }
+            new_code
+        }
+    };
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "code": code,
+        "url": app.url,
+        "instruction": format!(
+            "Add this meta tag to the <head> of your site at {}:\n<meta name=\"zesty-verify\" content=\"{}\">",
+            app.url, code
+        )
+    }))
+}
+
+/// Verify world ownership by checking meta tag
+#[post("/world/{slug}/verify")]
+pub async fn verify_world_ownership(data: Data<AppState>, path: web::Path<String>) -> HttpResponse {
+    let slug = path.into_inner();
+
+    // Get app by slug or ID
+    let app = if let Ok(id) = slug.parse::<i32>() {
+        get_app_by_id(id + 1, &data).await.ok()
+    } else {
+        match get_app_by_slug(&data, &slug).await {
+            Ok(Some(app)) => Some(app),
+            _ => None,
+        }
+    };
+
+    let app = match app {
+        Some(a) => a,
+        None => return HttpResponse::NotFound().body("World not found"),
+    };
+
+    let verification_code = match &app.verification_code {
+        Some(c) if !c.is_empty() => c.clone(),
+        _ => return HttpResponse::BadRequest().body("No verification code set. Request one first."),
+    };
+
+    // Fetch the world's URL and check for the meta tag
+    let url = normalize_app_url(app.url.clone());
+    let response = match reqwest::get(&url).await {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error fetching URL {}: {}", url, e);
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Could not fetch your site. Make sure it's accessible.",
+                "details": e.to_string()
+            }));
+        }
+    };
+
+    let html = match response.text().await {
+        Ok(h) => h,
+        Err(e) => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Could not read response from your site.",
+                "details": e.to_string()
+            }))
+        }
+    };
+
+    // Parse HTML and look for zesty-verify meta tag
+    let document = scraper::Html::parse_document(&html);
+    let selector = match scraper::Selector::parse("meta[name=\"zesty-verify\"]") {
+        Ok(s) => s,
+        Err(_) => return HttpResponse::InternalServerError().body("Selector parse error"),
+    };
+
+    let found_code = document
+        .select(&selector)
+        .next()
+        .and_then(|el| el.value().attr("content"))
+        .map(|s| s.to_string());
+
+    match found_code {
+        Some(code) if code == verification_code => {
+            // Verification successful! Mark as verified and create token
+            if let Err(e) = mark_app_verified(&data, app.id).await {
+                eprintln!("Error marking app verified: {}", e);
+                return HttpResponse::InternalServerError().body("Failed to save verification");
+            }
+
+            let app_slug = app.slug.clone().unwrap_or_else(|| app.id.to_string());
+            let token = match create_owner_token(&data, app.id, &app_slug).await {
+                Ok(t) => t,
+                Err(r) => return r,
+            };
+
+            HttpResponse::Ok()
+                .cookie(
+                    Cookie::build("relay-owner-token", token)
+                        .path("/")
+                        .http_only(true)
+                        .max_age(time::Duration::days(7))
+                        .finish(),
+                )
+                .json(serde_json::json!({
+                    "success": true,
+                    "message": "Verification successful! You can now edit this world."
+                }))
+        }
+        Some(code) => HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Verification code mismatch",
+            "found": code,
+            "expected": verification_code
+        })),
+        None => HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Meta tag not found",
+            "instruction": format!(
+                "Add this to the <head> of {}:\n<meta name=\"zesty-verify\" content=\"{}\">",
+                url, verification_code
+            )
+        })),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct UpdateWorldPayload {
+    name: String,
+    description: String,
+    image: Option<String>,
+    tags: Option<String>,
+    adult: Option<bool>,
+}
+
+/// Update world details (requires owner token)
+#[post("/world/{slug}/update")]
+pub async fn update_world(
+    request: HttpRequest,
+    data: Data<AppState>,
+    path: web::Path<String>,
+    payload: web::Json<UpdateWorldPayload>,
+) -> HttpResponse {
+    let slug = path.into_inner();
+
+    // Get app by slug or ID
+    let app = if let Ok(id) = slug.parse::<i32>() {
+        get_app_by_id(id + 1, &data).await.ok()
+    } else {
+        match get_app_by_slug(&data, &slug).await {
+            Ok(Some(app)) => Some(app),
+            _ => None,
+        }
+    };
+
+    let app = match app {
+        Some(a) => a,
+        None => return HttpResponse::NotFound().body("World not found"),
+    };
+
+    // Validate owner token
+    if let Err(response) = validate_owner_token(&request, &data, app.id).await {
+        return response;
+    }
+
+    // Update the app details
+    let image = payload.image.clone().unwrap_or_else(|| app.image.clone());
+    let tags = payload.tags.clone().unwrap_or_else(|| app.tags.clone());
+    let adult = payload.adult.unwrap_or(app.adult);
+
+    if let Err(e) =
+        update_app_details(&data, app.id, &payload.name, &payload.description, &image, &tags, adult)
+            .await
+    {
+        eprintln!("Error updating app: {}", e);
+        return HttpResponse::InternalServerError().body("Failed to update world");
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "World updated successfully"
+    }))
+}
+
 fn get_template_path(data: &Data<AppState>, page: &str) -> String {
     if *data.is_custom_page.get(page).unwrap() {
         format!("{}.html", page)
@@ -1138,4 +1546,52 @@ fn get_domain(url: &str) -> Option<String> {
     let normalized = normalize_app_url(url.to_string());
     let parsed = Url::parse(&normalized).ok()?;
     parsed.host_str().map(|h| h.to_string())
+}
+
+/// Generates a URL-friendly slug from a name
+fn generate_slug(name: &str) -> String {
+    let slug_text = slug::slugify(name);
+    // Ensure slug isn't empty
+    if slug_text.is_empty() {
+        "world".to_string()
+    } else {
+        slug_text
+    }
+}
+
+/// Generates a unique slug, appending numbers if needed
+async fn generate_unique_slug(data: &Data<AppState>, name: &str) -> String {
+    let base_slug = generate_slug(name);
+
+    // Check if base slug is available
+    if let Ok(false) = slug_exists(data, &base_slug).await {
+        return base_slug;
+    }
+
+    // Try appending numbers until we find a unique one
+    for i in 2..1000 {
+        let numbered_slug = format!("{}-{}", base_slug, i);
+        if let Ok(false) = slug_exists(data, &numbered_slug).await {
+            return numbered_slug;
+        }
+    }
+
+    // Fallback: append random suffix
+    format!("{}-{}", base_slug, rand::random::<u32>())
+}
+
+/// Generates a random verification code
+fn generate_verification_code() -> String {
+    let mut rng = rand::thread_rng();
+    let code: String = (0..32)
+        .map(|_| {
+            let idx = rng.gen_range(0..36);
+            if idx < 10 {
+                (b'0' + idx) as char
+            } else {
+                (b'a' + idx - 10) as char
+            }
+        })
+        .collect();
+    code
 }

@@ -29,6 +29,10 @@ pub struct DbApp {
     pub tags: String,
     pub visible: bool,
     pub created_at: DateTime<Utc>,
+    // New fields for world management features
+    pub slug: Option<String>,
+    pub verification_code: Option<String>,
+    pub verified_at: Option<DateTime<Utc>>,
 }
 
 impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
@@ -46,6 +50,9 @@ impl FromRow<'_, sqlx::postgres::PgRow> for DbApp {
             tags: row.try_get("tags")?,
             visible: row.try_get("visible")?,
             created_at: row.try_get("created_at")?,
+            slug: row.try_get("slug")?,
+            verification_code: row.try_get("verification_code")?,
+            verified_at: row.try_get("verified_at")?,
         })
     }
 }
@@ -76,21 +83,38 @@ impl DbApp {
             tags,
             visible,
             created_at,
+            slug: None,
+            verification_code: None,
+            verified_at: None,
         }
     }
 
+    /// Returns the page URL using slug if available, otherwise falls back to ID
     pub fn page_url(&self) -> String {
         let domain = env::var("DOMAIN").expect("DOMAIN must be set");
         let protocol = env::var("PROTOCOL").expect("PROTOCOL must be set");
         let full_domain = format!("{}{}", protocol, domain);
 
-        let ap_id = self.ap_id.clone().into_inner();
-        let idx = ap_id
-            .as_str()
-            .split("/")
-            .last()
-            .expect("This app should have an index!");
-        format!("{}/app/{}", full_domain, idx)
+        match &self.slug {
+            Some(s) if !s.is_empty() => format!("{}/world/{}", full_domain, s),
+            _ => {
+                let ap_id = self.ap_id.clone().into_inner();
+                let idx = ap_id
+                    .as_str()
+                    .split("/")
+                    .last()
+                    .expect("This app should have an index!");
+                format!("{}/world/{}", full_domain, idx)
+            }
+        }
+    }
+
+    /// Returns the relative page path (for internal links)
+    pub fn page_path(&self) -> String {
+        match &self.slug {
+            Some(s) if !s.is_empty() => format!("/world/{}", s),
+            _ => format!("/world/{}", self.id - 1),
+        }
     }
 }
 
@@ -218,6 +242,9 @@ impl Object for DbApp {
             tags: json.tags,
             visible: true,
             created_at: Utc::now(),
+            slug: None,
+            verification_code: None,
+            verified_at: None,
         };
         Ok(app)
     }

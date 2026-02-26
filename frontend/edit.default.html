@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit {{ name }} - SIGR</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <style>
+    .edit-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+    }
+    .form-group input[type="text"],
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .checkbox-group input[type="checkbox"] {
+      transform: scale(1.2);
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    .verification-box {
+      background: #f8f9fa;
+      border: 2px dashed #dee2e6;
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+    }
+    .code-block {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+      text-align: left;
+    }
+    .success-message {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .error-message {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: #667eea;
+      color: white;
+      border-radius: 50%;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .step {
+      margin-bottom: 1.5rem;
+      padding-left: 0.5rem;
+    }
+    .preview-image {
+      max-width: 300px;
+      max-height: 200px;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="nav-brand">SIGR</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/worlds">Worlds</a>
+        <a href="/relays">Relays</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">Edit World</h1>
+      <p class="hero-subtitle">{{ name }}</p>
+    </section>
+
+    <div class="edit-container">
+      {% if just_verified %}
+      <div class="success-message">
+        Verification successful! You can now edit this world.
+      </div>
+      {% endif %}
+
+      <div id="message-container"></div>
+
+      {% if is_verified %}
+      <!-- Edit Form (shown when verified) -->
+      <form id="edit-form">
+        <div class="form-group">
+          <label for="name">World Name</label>
+          <input type="text" id="name" name="name" value="{{ name }}" required>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" required>{{ description }}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="image">Preview Image URL</label>
+          <input type="text" id="image" name="image" value="{{ image }}" placeholder="https://example.com/preview.png">
+          {% if image and image != '#' %}
+          <img src="{{ image }}" alt="Current preview" class="preview-image" onerror="this.style.display='none'">
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="tags">Tags (comma-separated)</label>
+          <input type="text" id="tags" name="tags" value="{{ tags }}" placeholder="action, rpg, multiplayer">
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="adult" name="adult" {% if adult %}checked{% endif %}>
+            <label for="adult" style="margin-bottom: 0;">Contains adult content (18+)</label>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <a href="/world/{% if slug %}{{ slug }}{% else %}{{ app_id - 1 }}{% endif %}" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+
+      <script>
+        document.getElementById('edit-form').addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const form = this;
+          const messageContainer = document.getElementById('message-container');
+
+          form.classList.add('loading');
+          messageContainer.innerHTML = '';
+
+          const payload = {
+            name: document.getElementById('name').value,
+            description: document.getElementById('description').value,
+            image: document.getElementById('image').value || null,
+            tags: document.getElementById('tags').value || null,
+            adult: document.getElementById('adult').checked
+          };
+
+          try {
+            const slug = '{{ slug }}' || '{{ app_id - 1 }}';
+            const response = await fetch(`/world/${slug}/update`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              messageContainer.innerHTML = '<div class="success-message">World updated successfully!</div>';
+              setTimeout(() => {
+                window.location.href = `/world/${slug}`;
+              }, 1500);
+            } else {
+              messageContainer.innerHTML = `<div class="error-message">${data.error || 'Failed to update world'}</div>`;
+            }
+          } catch (err) {
+            messageContainer.innerHTML = '<div class="error-message">An error occurred. Please try again.</div>';
+          } finally {
+            form.classList.remove('loading');
+          }
+        });
+      </script>
+
+      {% else %}
+      <!-- Verification Instructions (shown when not verified) -->
+      <div class="verification-box">
+        <h2 style="margin-bottom: 1rem;">Verify Ownership</h2>
+        <p style="color: #666; margin-bottom: 1.5rem;">
+          To edit this world, you need to verify that you own <strong>{{ url }}</strong>
+        </p>
+
+        <div style="text-align: left;">
+          <div class="step">
+            <span class="step-number">1</span>
+            <strong>Get your verification code</strong>
+            <p style="color: #666; margin-top: 0.5rem;">Click the button below to generate a unique code for your site.</p>
+            <button id="get-code-btn" class="btn btn-secondary" style="margin-top: 0.5rem;">Get Verification Code</button>
+          </div>
+
+          <div class="step" id="step-2" style="display: none;">
+            <span class="step-number">2</span>
+            <strong>Add the meta tag to your site</strong>
+            <p style="color: #666; margin-top: 0.5rem;">Add this tag inside the <code>&lt;head&gt;</code> section of your HTML:</p>
+            <div class="code-block" id="meta-tag-code"></div>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('meta-tag-code').textContent)" class="btn btn-secondary" style="margin-top: 0.5rem;">Copy to Clipboard</button>
+          </div>
+
+          <div class="step" id="step-3" style="display: none;">
+            <span class="step-number">3</span>
+            <strong>Verify ownership</strong>
+            <p style="color: #666; margin-top: 0.5rem;">Once the meta tag is live, click verify.</p>
+            <button id="verify-btn" class="btn btn-primary" style="margin-top: 0.5rem;">Verify Ownership</button>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        const messageContainer = document.getElementById('message-container');
+        const slug = '{{ slug }}' || '{{ app_id - 1 }}';
+
+        document.getElementById('get-code-btn').addEventListener('click', async function() {
+          this.disabled = true;
+          this.textContent = 'Loading...';
+          messageContainer.innerHTML = '';
+
+          try {
+            const response = await fetch(`/world/${slug}/request-verification`, {
+              method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              document.getElementById('meta-tag-code').textContent =
+                `<meta name="zesty-verify" content="${data.code}">`;
+              document.getElementById('step-2').style.display = 'block';
+              document.getElementById('step-3').style.display = 'block';
+              this.textContent = 'Code Generated';
+            } else {
+              messageContainer.innerHTML = `<div class="error-message">${data.error || 'Failed to get verification code'}</div>`;
+              this.disabled = false;
+              this.textContent = 'Get Verification Code';
+            }
+          } catch (err) {
+            messageContainer.innerHTML = '<div class="error-message">An error occurred. Please try again.</div>';
+            this.disabled = false;
+            this.textContent = 'Get Verification Code';
+          }
+        });
+
+        document.getElementById('verify-btn').addEventListener('click', async function() {
+          this.disabled = true;
+          this.textContent = 'Verifying...';
+          messageContainer.innerHTML = '';
+
+          try {
+            const response = await fetch(`/world/${slug}/verify`, {
+              method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+              messageContainer.innerHTML = '<div class="success-message">Verification successful! Redirecting...</div>';
+              setTimeout(() => {
+                window.location.href = `/world/${slug}/edit?verified=true`;
+              }, 1500);
+            } else {
+              let errorMsg = data.error || 'Verification failed';
+              if (data.instruction) {
+                errorMsg += '<br><br>' + data.instruction.replace(/\n/g, '<br>');
+              }
+              messageContainer.innerHTML = `<div class="error-message">${errorMsg}</div>`;
+              this.disabled = false;
+              this.textContent = 'Verify Ownership';
+            }
+          } catch (err) {
+            messageContainer.innerHTML = '<div class="error-message">An error occurred. Please try again.</div>';
+            this.disabled = false;
+            this.textContent = 'Verify Ownership';
+          }
+        });
+
+        {% if verification_code %}
+        // Pre-populate if code already exists
+        document.getElementById('meta-tag-code').textContent =
+          `<meta name="zesty-verify" content="{{ verification_code }}">`;
+        document.getElementById('step-2').style.display = 'block';
+        document.getElementById('step-3').style.display = 'block';
+        document.getElementById('get-code-btn').textContent = 'Code Generated';
+        document.getElementById('get-code-btn').disabled = true;
+        {% endif %}
+      </script>
+      {% endif %}
+
+      <div style="margin-top: 2rem; text-align: center;">
+        <a href="/world/{% if slug %}{{ slug }}{% else %}{{ app_id - 1 }}{% endif %}" style="color: #667eea;">Back to world page</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -24,7 +24,7 @@
       <a href="/" class="nav-brand">🌐 SIGR</a>
       <div class="nav-links">
         <a href="/" class="active">Home</a>
-        <a href="/apps">Apps</a>
+        <a href="/worlds">Worlds</a>
         <a href="/relays">Relays</a>
       </div>
     </nav>
@@ -40,7 +40,7 @@
       <div class="stats-container">
         <div class="stat-item">
           <span class="stat-number">{{ apps_count }}</span>
-          <span class="stat-label">Apps Tracked</span>
+          <span class="stat-label">Worlds Explored</span>
         </div>
         <div class="stat-item">
           <span class="stat-number" id="total-users-online">{{ total_users_online }}</span>
@@ -67,25 +67,27 @@
       {% else %}
         {% set adjusted_url = "https://" ~ app.url %}
       {% endif %}
-      <div class="tile" data-name="{{ app.name | lower }}" data-url="{{ app.url }}" onclick="window.open('{{ adjusted_url }}', '_blank', 'noopener,noreferrer')">
+      <div class="tile" data-name="{{ app.name | lower }}" data-url="{{ app.url }}" onclick="window.location.href='{{ app.page_path }}'">
         <div class="tile-content">
-          {% if app.image != "#" %}
-          <img src="{{app.image}}" class="tile-image" alt="{{ app.name }}" onerror="this.closest('.tile').style.display='none'">
-          {% else %}
-          <img src="/static/images/noimage.png" class="tile-image" alt="{{ app.name }}">
-          {% endif %}
-          
+          <img src="{{ app.image }}" class="tile-image" alt="{{ app.name }}" onerror="this.src='/static/images/noimage.png'">
+
           <h3 class="tile-title">{{ app.name }}</h3>
-          
+
           <div class="live-count-container">
             <div class="live-dot"></div>
             <p class="live-count-text">{{ app.live_count }} here now</p>
           </div>
-          
-          <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer" class="tile-button" 
-             onclick="event.stopPropagation();">
-            Launch Experience
-          </a>
+
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;">
+            <a href="{{ adjusted_url }}" target="_blank" rel="noopener noreferrer" class="tile-button"
+               onclick="event.stopPropagation();">
+              Launch
+            </a>
+            <a href="{{ app.page_path }}" class="tile-button" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%);"
+               onclick="event.stopPropagation();">
+              Details
+            </a>
+          </div>
         </div>
       </div>
       {% endfor %}

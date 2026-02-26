@@ -245,3 +245,103 @@ pub async fn add_follower_to_relay(data: &Data<AppState>, follower_id: i32) -> R
         .await?;
     Ok(())
 }
+
+// ============================================================================
+// Slug Management
+// ============================================================================
+
+/// Get app by slug
+pub async fn get_app_by_slug(data: &Data<AppState>, slug: &str) -> Result<Option<DbApp>, Error> {
+    let db = &data.db;
+    let app = sqlx::query_as::<_, DbApp>("SELECT * FROM apps WHERE slug = $1")
+        .bind(slug)
+        .fetch_optional(db)
+        .await?;
+    Ok(app)
+}
+
+/// Check if a slug already exists
+pub async fn slug_exists(data: &Data<AppState>, slug: &str) -> Result<bool, Error> {
+    let db = &data.db;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM apps WHERE slug = $1")
+        .bind(slug)
+        .fetch_one(db)
+        .await?;
+    Ok(count > 0)
+}
+
+/// Set slug for an app
+pub async fn set_app_slug(data: &Data<AppState>, app_id: i32, slug: &str) -> Result<(), Error> {
+    let db = &data.db;
+    sqlx::query("UPDATE apps SET slug = $1 WHERE id = $2")
+        .bind(slug)
+        .bind(app_id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+// ============================================================================
+// Verification Management
+// ============================================================================
+
+/// Set verification code for an app
+pub async fn set_verification_code(
+    data: &Data<AppState>,
+    app_id: i32,
+    code: &str,
+) -> Result<(), Error> {
+    let db = &data.db;
+    sqlx::query("UPDATE apps SET verification_code = $1 WHERE id = $2")
+        .bind(code)
+        .bind(app_id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+/// Mark app as verified (sets verified_at to current timestamp)
+pub async fn mark_app_verified(data: &Data<AppState>, app_id: i32) -> Result<(), Error> {
+    let db = &data.db;
+    sqlx::query("UPDATE apps SET verified_at = NOW() WHERE id = $1")
+        .bind(app_id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+/// Update app details (for owner editing after verification)
+pub async fn update_app_details(
+    data: &Data<AppState>,
+    app_id: i32,
+    name: &str,
+    description: &str,
+    image_url: &str,
+    tags: &str,
+    adult: bool,
+) -> Result<(), Error> {
+    let db = &data.db;
+    sqlx::query(
+        "UPDATE apps SET name = $1, description = $2, image = $3, tags = $4, is_adult = $5 WHERE id = $6",
+    )
+    .bind(name)
+    .bind(description)
+    .bind(image_url)
+    .bind(tags)
+    .bind(adult)
+    .bind(app_id)
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+/// Get apps without slugs (for migration script)
+pub async fn get_apps_without_slugs(data: &Data<AppState>) -> Result<Vec<DbApp>, Error> {
+    let db = &data.db;
+    let apps = sqlx::query_as::<_, DbApp>(
+        "SELECT * FROM apps WHERE slug IS NULL OR slug = '' ORDER BY id ASC",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(apps)
+}
