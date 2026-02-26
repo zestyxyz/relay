@@ -1,5 +1,5 @@
-# Build stage
-FROM rust:latest AS builder
+# Build stage - use bookworm to match runtime glibc version
+FROM rust:bookworm AS builder
 
 WORKDIR /app
 

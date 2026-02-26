@@ -20,8 +20,10 @@ use tokio::sync::broadcast;
 
 use crate::activitypub::services::{
     admin_follow, admin_page, admin_toggle_visible, api_get_apps, get_activity, get_app, get_apps,
-    get_beacon, get_image, get_relays, get_world, get_worlds, http_get_system_user, http_post_relay_inbox, index, login,
-    new_beacon, not_found, request_login_token, session_events, update_session_info, webfinger,
+    get_beacon, get_image, get_relays, get_world, get_world_edit, get_worlds, http_get_system_user,
+    http_post_relay_inbox, index, login, new_beacon, not_found, request_login_token,
+    request_world_verification, session_events, update_session_info, update_world,
+    verify_world_ownership, webfinger,
 };
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -107,6 +109,7 @@ async fn main() -> Result<(), anyhow::Error> {
     is_custom_page.insert("admin".to_string(), false);
     is_custom_page.insert("app".to_string(), false);
     is_custom_page.insert("apps".to_string(), false);
+    is_custom_page.insert("edit".to_string(), false);
     is_custom_page.insert("error".to_string(), false);
     is_custom_page.insert("index".to_string(), false);
     is_custom_page.insert("login".to_string(), false);
@@ -160,6 +163,10 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(get_apps)
             .service(get_world)
             .service(get_worlds)
+            .service(get_world_edit)
+            .service(request_world_verification)
+            .service(verify_world_ownership)
+            .service(update_world)
             .service(api_get_apps)
             .service(get_relays)
             .service(login)
