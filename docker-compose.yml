@@ -9,6 +9,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
+      - ./frontend:/app/frontend:ro
       - ./images:/app/images
     restart: unless-stopped
 
