@@ -1,19 +1,21 @@
 # Relay
 
-A federated discovery server for spatial web apps, built on [ActivityPub](https://activitypub.rocks/). Part of the Distributed Spatial Internet Graph (DSIG).
+A federated discovery server for spatial web experiences, built on [ActivityPub](https://activitypub.rocks/). Part of the Distributed Spatial Internet Graph (DSIG).
 
 **Live instance:** [relay.zesty.xyz](https://relay.zesty.xyz)
 
 ## What is a Relay?
 
-Relays are consensus-building servers that index and provide exposure for 3D apps. They serve as directories where users can discover spatial web experiences.
+Relays are consensus-building servers that index and provide exposure for 3D worlds and spatial web experiences. They serve as directories where users can discover immersive content.
 
 Key features:
-- **App Discovery** - Browse and search indexed spatial web apps
-- **Federation** - Relays can follow each other via ActivityPub, sharing their app directories
-- **Beacons** - Apps verify ownership and get indexed by adding a beacon
-- **Live Sessions** - Track active users across indexed apps
-- **Admin Dashboard** - Manage indexed apps and federation settings
+- **World Discovery** - Browse and search indexed spatial web experiences
+- **SEO-Friendly URLs** - Human-readable slugs like `/world/my-awesome-world`
+- **Owner Verification** - Verify ownership via meta tag to edit world details
+- **Federation** - Relays can follow each other via ActivityPub, sharing their directories
+- **Beacons** - Worlds get indexed by integrating a beacon script
+- **Live Sessions** - Real-time tracking of active users across indexed worlds
+- **Admin Dashboard** - Manage indexed worlds and federation settings
 - **Customizable Frontend** - Override default templates with your own HTML
 
 ## Architecture
@@ -26,11 +28,26 @@ Key features:
       │ Beacon                          │ Beacon
       │                                 │
 ┌─────┴─────┐                      ┌────┴─────┐
-│   App     │                      │   App    │
+│   World   │                      │   World  │
 └───────────┘                      └──────────┘
 ```
 
-When Relay A follows Relay B, all apps indexed on Relay B also appear on Relay A. Apps that appear across multiple relays are considered more "reputable" by community consensus. We have more ways of establishing and verifying reputation in the roadmap.
+When Relay A follows Relay B, all worlds indexed on Relay B also appear on Relay A. Worlds that appear across multiple relays are considered more "reputable" by community consensus.
+
+## Owner Verification
+
+World owners can verify ownership and edit their world's details:
+
+1. Visit `/world/{slug}/edit`
+2. Click "Get Verification Code" to receive a unique code
+3. Add the meta tag to your site's `<head>`:
+   ```html
+   <meta name="zesty-verify" content="your-code-here">
+   ```
+4. Click "Verify Ownership"
+5. Once verified, you can edit: name, description, image URL, tags, adult flag
+
+Verification uses a JWT cookie valid for 7 days.
 
 ## Quick Start with Docker
 
@@ -106,14 +123,15 @@ Override default templates by creating files without the `.default` suffix:
 
 ```
 frontend/
-├── index.default.html    # Default homepage
+├── index.default.html    # Homepage with featured worlds
 ├── index.html            # Your custom homepage (create this)
-├── app.default.html
-├── apps.default.html
-├── admin.default.html
-├── login.default.html
-├── relays.default.html
-├── error.default.html
+├── app.default.html      # Single world detail page
+├── apps.default.html     # All worlds directory
+├── edit.default.html     # Owner verification & editing
+├── admin.default.html    # Admin dashboard
+├── login.default.html    # Admin login
+├── relays.default.html   # Federated relays list
+├── error.default.html    # Error page
 └── styles.css
 ```
 
@@ -121,17 +139,43 @@ Templates use [Tera](https://keats.github.io/tera/) syntax.
 
 ## API Endpoints
 
+### Public Pages
 | Endpoint | Description |
 |----------|-------------|
-| `GET /` | Homepage with indexed apps |
-| `GET /apps` | All apps directory |
-| `GET /app/:id` | Single app page |
+| `GET /` | Homepage with featured worlds |
+| `GET /worlds` | All worlds directory |
+| `GET /world/{slug}` | Single world page (also accepts numeric ID) |
 | `GET /relays` | Federated relays list |
+
+### Owner Verification & Editing
+| Endpoint | Description |
+|----------|-------------|
+| `GET /world/{slug}/edit` | Edit page (shows verification if not verified) |
+| `POST /world/{slug}/request-verification` | Get verification code |
+| `POST /world/{slug}/verify` | Verify ownership via meta tag |
+| `POST /world/{slug}/update` | Update world details (requires owner token) |
+
+### Beacon & Session
+| Endpoint | Description |
+|----------|-------------|
+| `PUT /beacon` | Register or update a world |
+| `POST /session` | Send session heartbeat |
+| `GET /events/sessions` | SSE stream for real-time session events |
+| `GET /api/apps` | JSON API for world data |
+
+### ActivityPub
+| Endpoint | Description |
+|----------|-------------|
 | `GET /relay` | ActivityPub actor |
 | `POST /relay/inbox` | ActivityPub inbox |
 | `GET /.well-known/webfinger` | WebFinger discovery |
-| `GET /admin` | Admin dashboard |
-| `POST /beacon` | Register a new beacon |
+
+### Admin
+| Endpoint | Description |
+|----------|-------------|
+| `GET /admin` | Admin dashboard (requires login) |
+| `POST /admin/follow` | Follow another relay |
+| `POST /admin/togglevisible` | Toggle world visibility |
 
 ## Development
 
@@ -161,6 +205,14 @@ sqlx database drop
 sqlx database create
 sqlx migrate run
 ```
+
+### URL Structure
+
+Worlds use SEO-friendly slug URLs:
+- `/world/my-awesome-world` - Slug-based URL (preferred)
+- `/world/42` - Numeric ID still works for backward compatibility
+
+Slugs are auto-generated from world names on registration. Conflicts are handled by appending numbers (`my-world`, `my-world-2`, etc.).
 
 ## Documentation
 
