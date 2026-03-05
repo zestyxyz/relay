@@ -48,7 +48,10 @@
           <div class="app-visibility-item">
             <div class="app-info">
               <span class="app-id">#{{ app.id }}</span>
-              <a class="app-url" href="{{ app.url }}" target="_blank" rel="noopener noreferrer" title="{{ app.url }}">{{ app.url }}</a>
+              <div style="display:flex;flex-direction:column;gap:0.1rem;min-width:0;">
+                <span style="font-weight:600;">{{ app.name }}</span>
+                <a class="app-url" href="{{ app.url }}" target="_blank" rel="noopener noreferrer" title="{{ app.url }}" style="word-break:break-all;">{{ app.url }}</a>
+              </div>
             </div>
             <div style="display:flex;gap:0.5rem;align-items:center;">
               <form action="/admin/togglevisible" method="post" class="visibility-form">
