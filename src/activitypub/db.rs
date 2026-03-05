@@ -123,6 +123,15 @@ pub async fn toggle_app_visibility(id: i32, data: &Data<AppState>) -> Result<(),
     Ok(())
 }
 
+pub async fn delete_app(id: i32, data: &Data<AppState>) -> Result<(), Error> {
+    let db = &data.db;
+    sqlx::query("DELETE FROM apps WHERE id = $1")
+        .bind(id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
 pub async fn get_activity_by_id(id: i32, data: &Data<AppState>) -> Result<DbActivity, Error> {
     let db = &data.db;
     let activity = sqlx::query_as::<_, DbActivity>("SELECT * FROM activities WHERE id = $1")
