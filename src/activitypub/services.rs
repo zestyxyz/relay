@@ -30,7 +30,7 @@ use super::db::{
     create_activity, create_app, get_activities_count, get_activity_by_id, get_all_apps,
     get_all_relays, get_app_by_base_url, get_app_by_id, get_app_by_slug, get_apps_count,
     get_relay_by_id, get_relay_followers, get_system_user, mark_app_verified, set_app_slug,
-    set_verification_code, slug_exists, toggle_app_visibility, update_app, update_app_details,
+    delete_app, set_verification_code, slug_exists, toggle_app_visibility, update_app, update_app_details,
 };
 use crate::{AppState, NewSessionEvent, SessionInfo};
 
@@ -1085,6 +1085,35 @@ async fn admin_toggle_visible(
     }
 
     match toggle_app_visibility(req_body.app_id, &data).await {
+        Ok(_) => {
+            let template_path = get_template_path(&data, "admin");
+            match get_all_apps(&data).await {
+                Ok(apps) => {
+                    let mut ctx = tera::Context::new();
+                    ctx.insert("apps", &apps);
+                    match data.tera.render(&template_path, &ctx) {
+                        Ok(html) => HttpResponse::Ok().body(html),
+                        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                    }
+                }
+                Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+            }
+        }
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
+
+#[post("/admin/delete-world")]
+pub async fn admin_delete_world(
+    request: HttpRequest,
+    req_body: web::Form<ToggleVisibilityPayload>,
+    data: Data<AppState>,
+) -> HttpResponse {
+    if let Err(response) = validate_admin_token(&request, &data).await {
+        return response;
+    }
+
+    match delete_app(req_body.app_id, &data).await {
         Ok(_) => {
             let template_path = get_template_path(&data, "admin");
             match get_all_apps(&data).await {

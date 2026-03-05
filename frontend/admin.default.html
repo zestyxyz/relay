@@ -48,21 +48,30 @@
           <div class="app-visibility-item">
             <div class="app-info">
               <span class="app-id">#{{ app.id }}</span>
-              <span class="app-url">{{ app.url }}</span>
+              <a class="app-url" href="{{ app.url }}" target="_blank" rel="noopener noreferrer" title="{{ app.url }}">{{ app.url }}</a>
             </div>
-            <form action="/admin/togglevisible" method="post" class="visibility-form">
-              {% if app.visible %}
-                <button type="submit" name="app_id" value="{{ app.id }}" 
-                        class="visibility-button visible">
-                  ✅ Visible
-                </button>
-              {% else %}
-                <button type="submit" name="app_id" value="{{ app.id }}" 
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+              <form action="/admin/togglevisible" method="post" class="visibility-form">
+                {% if app.visible %}
+                  <button type="submit" name="app_id" value="{{ app.id }}"
+                          class="visibility-button visible">
+                    ✅ Visible
+                  </button>
+                {% else %}
+                  <button type="submit" name="app_id" value="{{ app.id }}"
+                          class="visibility-button hidden">
+                    ❌ Hidden
+                  </button>
+                {% endif %}
+              </form>
+              <form action="/admin/delete-world" method="post" class="visibility-form"
+                    onsubmit="return confirm('Delete world #{{ app.id }} ({{ app.url }})? This cannot be undone.');">
+                <button type="submit" name="app_id" value="{{ app.id }}"
                         class="visibility-button hidden">
-                  ❌ Hidden
+                  🗑️ Delete
                 </button>
-              {% endif %}
-            </form>
+              </form>
+            </div>
           </div>
           {% endfor %}
         </div>

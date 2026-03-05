@@ -19,7 +19,7 @@ use tera::Tera;
 use tokio::sync::broadcast;
 
 use crate::activitypub::services::{
-    admin_follow, admin_page, admin_toggle_visible, api_get_apps, get_activity, get_app, get_apps,
+    admin_delete_world, admin_follow, admin_page, admin_toggle_visible, api_get_apps, get_activity, get_app, get_apps,
     get_beacon, get_image, get_relays, get_world, get_world_edit, get_worlds, http_get_system_user,
     http_post_relay_inbox, index, login, new_beacon, not_found, request_login_token,
     request_world_verification, session_events, update_session_info, update_world,
@@ -174,6 +174,7 @@ async fn main() -> Result<(), anyhow::Error> {
             .service(admin_page)
             .service(admin_follow)
             .service(admin_toggle_visible)
+            .service(admin_delete_world)
             .service(webfinger)
             .service(get_image)
             .service(update_session_info)
