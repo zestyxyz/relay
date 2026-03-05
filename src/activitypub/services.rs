@@ -358,6 +358,15 @@ async fn new_beacon(
     // Extract fields from request body
     let url = req_body.url.clone();
 
+    // Reject beacons from localhost / loopback addresses
+    if let Ok(parsed) = Url::parse(&url) {
+        let host = parsed.host_str().unwrap_or("");
+        if matches!(host, "localhost" | "127.0.0.1" | "::1" | "0.0.0.0") {
+            eprintln!("Beacon rejected: localhost URL '{}'", url);
+            return HttpResponse::Forbidden().body("Localhost URLs are not permitted");
+        }
+    }
+
     // Validate that the Origin header matches the URL being registered
     // This ensures browsers can only register the domain they're actually running on
     if let Some(origin_header) = req.headers().get("Origin") {
